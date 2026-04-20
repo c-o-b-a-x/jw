@@ -247,6 +247,15 @@ export default function App() {
           </li>
           <li>
             <Link
+              to="/radio"
+              className={location.pathname === "/radio" ? "active" : ""}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Radio
+            </Link>
+          </li>
+          <li>
+            <Link
               to="/about"
               className={location.pathname === "/about" ? "active" : ""}
               onClick={() => setIsMenuOpen(false)}
