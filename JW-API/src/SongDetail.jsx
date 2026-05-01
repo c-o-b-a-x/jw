@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import "./App.css";
 
 const API_BASE_URL = "https://juicewrldapi.com";
@@ -20,14 +20,6 @@ async function fetchJson(path, signal) {
   return response.json();
 }
 
-function formatCategoryLabel(value) {
-  if (!value) return "All songs";
-  return String(value)
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 export default function SongDetail() {
   const { id } = useParams();
   const location = useLocation();
@@ -36,23 +28,20 @@ export default function SongDetail() {
   const [error, setError] = useState("");
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
 
-  // Only fetch if we didn't get data from navigation state
   useEffect(() => {
     if (song) return;
 
     const controller = new AbortController();
+
     async function fetchSong() {
       setIsLoading(true);
       setError("");
+
       try {
-        // Try to fetch single song – adjust endpoint if needed
-        const data = await fetchJson(
-          `/juicewrld/songs/${id}/`,
-          controller.signal,
-        );
+        const data = await fetchJson(`/juicewrld/songs/${id}/`, controller.signal);
         setSong(data);
-      } catch (err) {
-        if (err.name !== "AbortError") {
+      } catch (fetchError) {
+        if (fetchError.name !== "AbortError") {
           setError("Could not load song details. Please try again later.");
           setSong(null);
         }
@@ -60,6 +49,7 @@ export default function SongDetail() {
         setIsLoading(false);
       }
     }
+
     fetchSong();
     return () => controller.abort();
   }, [id, song]);
@@ -75,17 +65,11 @@ export default function SongDetail() {
           className="chip"
           style={{ marginBottom: 24, display: "inline-block" }}
         >
-          ← Back to catalog
+          Back to catalog
         </Link>
-        <div
-          className="detail-panel"
-          style={{ maxWidth: 800, margin: "0 auto" }}
-        >
+        <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
           <div className="skeleton-card" style={{ height: 300 }} />
-          <div
-            className="skeleton-card"
-            style={{ height: 100, marginTop: 20 }}
-          />
+          <div className="skeleton-card" style={{ height: 100, marginTop: 20 }} />
         </div>
       </div>
     );
@@ -102,7 +86,7 @@ export default function SongDetail() {
           className="chip"
           style={{ display: "inline-block", marginTop: 20 }}
         >
-          ← Back to catalog
+          Back to catalog
         </Link>
       </div>
     );
@@ -115,7 +99,7 @@ export default function SongDetail() {
         className="chip"
         style={{ marginBottom: 24, display: "inline-block" }}
       >
-        ← Back to catalog
+        Back to catalog
       </Link>
 
       <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
@@ -133,8 +117,7 @@ export default function SongDetail() {
           <p className="eyebrow">Song details</p>
           <h2>{song.name}</h2>
           <p className="detail-description">
-            {song.additional_information ||
-              "No additional information available."}
+            {song.additional_information || "No additional information available."}
           </p>
         </div>
 
@@ -162,9 +145,7 @@ export default function SongDetail() {
             <audio controls preload="none" src={songAudio}>
               Your browser does not support audio playback.
             </audio>
-            <p className="player-note">
-              Streaming from the API file path: {song.path}
-            </p>
+            <p className="player-note">Streaming from the API file path: {song.path}</p>
           </div>
         )}
 
@@ -185,16 +166,11 @@ export default function SongDetail() {
           <div className="meta-block">
             <div className="block-header">
               <p className="block-label">Lyrics preview</p>
-              <button
-                type="button"
-                onClick={() => setLyricsExpanded((open) => !open)}
-              >
+              <button type="button" onClick={() => setLyricsExpanded((open) => !open)}>
                 {lyricsExpanded ? "Collapse" : "Expand"}
               </button>
             </div>
-            <pre
-              className={`lyrics-block ${lyricsExpanded ? "is-expanded" : ""}`}
-            >
+            <pre className={`lyrics-block ${lyricsExpanded ? "is-expanded" : ""}`}>
               {song.lyrics}
             </pre>
           </div>
@@ -204,9 +180,7 @@ export default function SongDetail() {
           <p className="block-label">Session notes</p>
           <ul className="detail-list">
             <li>{song.record_dates || "Record date not listed"}</li>
-            <li>
-              {song.recording_locations || "Recording location not listed"}
-            </li>
+            <li>{song.recording_locations || "Recording location not listed"}</li>
             <li>{song.date_leaked || "Leak status not listed"}</li>
             <li>{song.preview_date || "Preview date not listed"}</li>
           </ul>

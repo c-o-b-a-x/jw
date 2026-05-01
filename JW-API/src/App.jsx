@@ -1,20 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import "./App.css";
 import logo from "./assets/logo999.png";
 
-const API_BASE_URL = "https://juicewrldapi.com";
 const SONGS_PER_PAGE = 12;
-
-function buildImageUrl(path) {
-  if (!path) return "";
-  return path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
-}
-
-function buildAudioUrl(path) {
-  if (!path) return "";
-  return `${API_BASE_URL}/juicewrld/files/download/?path=${encodeURIComponent(path)}`;
-}
+const API_BASE_URL = "https://juicewrldapi.com";
 
 async function fetchJson(path, signal) {
   const response = await fetch(`${API_BASE_URL}${path}`, { signal });
@@ -35,7 +25,6 @@ function formatCount(value) {
 }
 
 export default function App() {
-  // ========== Data state ==========
   const [songs, setSongs] = useState([]);
   const [categories, setCategories] = useState([]);
   const [stats, setStats] = useState(null);
@@ -47,7 +36,6 @@ export default function App() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // ========== Navbar state ==========
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("home");
   const heroRef = useRef(null);
@@ -55,10 +43,9 @@ export default function App() {
   const footerRef = useRef(null);
   const location = useLocation();
 
-  // ========== Scroll spy ==========
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPos = window.scrollY + 100;
+      const scrollPos = window.scrollY + 120;
       const heroSection = heroRef.current;
       const songsSection = songsRef.current;
       const footerSection = footerRef.current;
@@ -77,85 +64,95 @@ export default function App() {
         setActiveNav("about");
       }
     };
+
     window.addEventListener("scroll", handleScroll);
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Smooth scroll to section
-  const scrollToSection = (section, navName) => {
+  function scrollToSection(section, navName) {
     setActiveNav(navName);
     setIsMenuOpen(false);
+
     let element = null;
     if (section === "home") element = heroRef.current;
     if (section === "explore") element = songsRef.current;
     if (section === "about") element = footerRef.current;
+
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  };
+  }
 
-  // Close mobile menu on resize
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth > 768 && isMenuOpen) setIsMenuOpen(false);
+      if (window.innerWidth > 768 && isMenuOpen) {
+        setIsMenuOpen(false);
+      }
     };
+
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [isMenuOpen]);
 
-  // ========== Search debounce ==========
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       setPage(1);
       setSearchTerm(searchInput.trim());
     }, 300);
-    return () => clearTimeout(timeoutId);
+
+    return () => window.clearTimeout(timeoutId);
   }, [searchInput]);
 
-  // ========== Load categories & stats ==========
   useEffect(() => {
     const controller = new AbortController();
+
     async function loadBootstrapData() {
       try {
         const [categoriesData, statsData] = await Promise.all([
           fetchJson("/juicewrld/categories/", controller.signal),
           fetchJson("/juicewrld/stats/", controller.signal),
         ]);
+
         setCategories(categoriesData.categories ?? []);
         setStats(statsData);
       } catch (error) {
         if (error.name !== "AbortError") {
           setErrorMessage(
-            "Failed to load categories/stats. Song browsing still works.",
+            "Failed to load categories and stats. Song browsing still works.",
           );
         }
       } finally {
         setIsBootstrapping(false);
       }
     }
+
     loadBootstrapData();
     return () => controller.abort();
   }, []);
 
-  // ========== Load songs ==========
   useEffect(() => {
     const controller = new AbortController();
+
     async function loadSongs() {
       setIsLoading(true);
       setErrorMessage("");
+
       try {
         const params = new URLSearchParams({
           page: String(page),
           page_size: String(SONGS_PER_PAGE),
         });
+
         if (activeCategory) params.set("category", activeCategory);
         if (searchTerm) params.set("search", searchTerm);
+
         const data = await fetchJson(
           `/juicewrld/songs/?${params.toString()}`,
           controller.signal,
         );
         const results = data.results ?? [];
+
         setSongs(results);
         if (!results.length) {
           setErrorMessage(
@@ -165,12 +162,15 @@ export default function App() {
       } catch (error) {
         if (error.name !== "AbortError") {
           setSongs([]);
-          setErrorMessage("API request failed. Check your network.");
+          setErrorMessage(
+            "The API request failed. Check your network and try again.",
+          );
         }
       } finally {
         setIsLoading(false);
       }
     }
+
     loadSongs();
     return () => controller.abort();
   }, [activeCategory, page, searchTerm]);
@@ -188,7 +188,6 @@ export default function App() {
 
   return (
     <>
-      {/* Top Navbar */}
       <nav className="top-navbar">
         <img
           src={logo}
@@ -199,10 +198,10 @@ export default function App() {
         />
         <button
           className="menu-toggle"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          onClick={() => setIsMenuOpen((open) => !open)}
           aria-label="Toggle menu"
         >
-          ☰
+          Menu
         </button>
         <ul className={`nav-links ${isMenuOpen ? "open" : ""}`}>
           <li>
@@ -213,8 +212,8 @@ export default function App() {
                   ? "active"
                   : ""
               }
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={(event) => {
+                event.preventDefault();
                 if (location.pathname !== "/") {
                   window.location.href = "/";
                   return;
@@ -233,8 +232,8 @@ export default function App() {
                   ? "active"
                   : ""
               }
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={(event) => {
+                event.preventDefault();
                 if (location.pathname !== "/") {
                   window.location.href = "/#explore";
                   return;
@@ -256,6 +255,26 @@ export default function App() {
           </li>
           <li>
             <Link
+              to="/playlists"
+              className={location.pathname === "/playlists" ? "active" : ""}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Playlists
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/create-playlist"
+              className={
+                location.pathname === "/create-playlist" ? "active" : ""
+              }
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Create Playlist
+            </Link>
+          </li>
+          <li>
+            <Link
               to="/about"
               className={location.pathname === "/about" ? "active" : ""}
               onClick={() => setIsMenuOpen(false)}
@@ -267,7 +286,6 @@ export default function App() {
       </nav>
 
       <main className="app-shell">
-        {/* Hero Section */}
         <section className="hero-panel" ref={heroRef}>
           <div className="hero-copy">
             <p className="eyebrow">Juice WRLD Discography Explorer</p>
@@ -296,12 +314,13 @@ export default function App() {
               </article>
             </div>
           </div>
+
           <div className="hero-spotlight">
             <div className="vinyl-ring" />
             <div className="spotlight-card">
               <p className="spotlight-label">Now spotlighting</p>
               <h2>{songs[0]?.name ?? "Loading tracks..."}</h2>
-              <p>Click any song to see full details</p>
+              <p>Tap into the archive and open any song for full details.</p>
               <div className="spotlight-meta">
                 <span>999</span>
                 <span>LLJW</span>
@@ -310,20 +329,23 @@ export default function App() {
           </div>
         </section>
 
-        {/* Filter Bar */}
         <section className="filter-bar">
           <label className="field">
             <span>Search</span>
             <input
               type="search"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Search by title, artist, or phrase"
             />
           </label>
           <label className="field">
             <span>Category</span>
-            <select value={activeCategory} onChange={handleCategoryChange}>
+            <select
+              id="select"
+              value={activeCategory}
+              onChange={handleCategoryChange}
+            >
               <option value="">All songs</option>
               {categories.map((category, index) => {
                 const value = String(
@@ -332,6 +354,7 @@ export default function App() {
                 const description = category.description
                   ? ` - ${category.description}`
                   : "";
+
                 return (
                   <option key={value} value={value}>
                     {formatCategoryLabel(value)}
@@ -351,7 +374,6 @@ export default function App() {
           </div>
         </section>
 
-        {/* Top Category Chips */}
         {topCategories.length > 0 && (
           <section className="chip-row" aria-label="Top categories">
             {topCategories.map(([category, count]) => (
@@ -376,7 +398,6 @@ export default function App() {
           </section>
         )}
 
-        {/* Song Grid */}
         <div className="song-list-panel" ref={songsRef}>
           <div className="section-heading">
             <div>
@@ -385,13 +406,17 @@ export default function App() {
             </div>
             <div className="pager">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                type="button"
+                onClick={() =>
+                  setPage((currentPage) => Math.max(1, currentPage - 1))
+                }
                 disabled={page === 1 || isLoading}
               >
                 Prev
               </button>
               <button
-                onClick={() => setPage((p) => p + 1)}
+                type="button"
+                onClick={() => setPage((currentPage) => currentPage + 1)}
                 disabled={isLoading || songs.length < SONGS_PER_PAGE}
               >
                 Next
@@ -401,9 +426,9 @@ export default function App() {
 
           <div className="song-grid">
             {isLoading
-              ? Array.from({ length: SONGS_PER_PAGE }).map((_, i) => (
+              ? Array.from({ length: SONGS_PER_PAGE }).map((_, index) => (
                   <article
-                    key={i}
+                    key={index}
                     className="song-card skeleton-card"
                     aria-hidden="true"
                   />
@@ -435,7 +460,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Footer */}
         <footer className="site-footer" ref={footerRef}>
           <p>Built with React and the Juice WRLD API.</p>
           <div className="footer-content">

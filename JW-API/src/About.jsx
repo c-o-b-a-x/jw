@@ -9,7 +9,7 @@ export default function About() {
         className="chip"
         style={{ marginBottom: 24, display: "inline-block" }}
       >
-        ← Back to home
+        Back to home
       </Link>
 
       <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
@@ -23,8 +23,8 @@ export default function About() {
           <p className="eyebrow">About this project</p>
           <h2>Juice WRLD API Explorer</h2>
           <p className="detail-description">
-            A fan‑made web app that lets you search, browse, and stream songs
-            from the Juice WRLD discography. All data is provided by the{" "}
+            A fan-made web app that lets you search, browse, and stream songs from
+            the Juice WRLD discography. All data is provided by the{" "}
             <a
               href="https://juicewrldapi.com"
               target="_blank"
@@ -43,7 +43,7 @@ export default function About() {
           </div>
           <div>
             <span>Styling</span>
-            <strong>Dark Grunge / SoundCloud 2018</strong>
+            <strong>Dark archive / mixtape feel</strong>
           </div>
           <div>
             <span>Developer</span>
@@ -68,24 +68,18 @@ export default function About() {
           <ul className="detail-list">
             <li>Live search and category filtering</li>
             <li>Individual song pages with full details</li>
-            <li>In‑page audio player for each track</li>
-            <li>Lyrics preview with expand/collapse</li>
-            <li>Responsive dark grunge design</li>
+            <li>In-page audio player for each track</li>
+            <li>Playlist creation, editing, and sharing</li>
+            <li>Responsive dark visual design</li>
           </ul>
         </div>
 
         <div className="meta-block">
-          <p className="block-label">API Credits</p>
+          <p className="block-label">Credits</p>
           <ul className="detail-list">
-            <li>
-              All song metadata, artwork, and audio files are served by the
-              Juice WRLD API.
-            </li>
-            <li>
-              Special thanks to the API maintainers and the Juice WRLD
-              community.
-            </li>
-            <li>LLJW 🕊️</li>
+            <li>All song metadata, artwork, and audio files are served by the Juice WRLD API.</li>
+            <li>Special thanks to the API maintainers and the Juice WRLD community.</li>
+            <li>LLJW</li>
           </ul>
         </div>
       </div>
