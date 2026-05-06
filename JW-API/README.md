@@ -1,16 +1,63 @@
-# React + Vite
+# Juice WRLD Web App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + Vite web app for browsing the Juice WRLD API catalog, opening song detail pages, using radio mode, and managing local playlists.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```powershell
+npm install
+npm run dev
+```
 
-## React Compiler
+## Production build
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```powershell
+npm run build
+```
 
-## Expanding the ESLint configuration
+The production output is generated in `dist/`.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Render deployment
+
+This repo is prepared for deployment on Render as a static site.
+
+### Included setup
+
+- `render.yaml` is configured for a Render `static_site`
+- build command: `npm install && npm run build`
+- publish directory: `dist`
+- SPA rewrite: `/* -> /index.html`
+
+That rewrite is important because the app uses `react-router-dom` with client-side routes like:
+
+- `/radio`
+- `/about`
+- `/playlists`
+- `/song/:id`
+- `/shared/:shareId`
+
+Without the rewrite, direct visits or refreshes on those pages would 404 on a static host.
+
+### Deploy on Render
+
+1. Push this repo to GitHub, GitLab, or Bitbucket.
+2. In Render, create a new Static Site.
+3. Point Render at this repository.
+4. Render should detect `render.yaml` automatically.
+5. Deploy.
+
+If you prefer manual settings instead of the blueprint, use:
+
+- Build Command: `npm install && npm run build`
+- Publish Directory: `dist`
+
+And add a rewrite rule in Render:
+
+- Source: `/*`
+- Destination: `/index.html`
+- Action: `Rewrite`
+
+## Notes
+
+- The web app talks to `https://juicewrldapi.com` directly in production.
+- The Vite `/api` proxy in `vite.config.js` is only for local development convenience.
