@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
+import { useAudioPlayer } from "./audio-player";
 import "./App.css";
 
 const API_BASE_URL = "https://juicewrldapi.com";
@@ -7,11 +8,6 @@ const API_BASE_URL = "https://juicewrldapi.com";
 function buildImageUrl(path) {
   if (!path) return "";
   return path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
-}
-
-function buildAudioUrl(path) {
-  if (!path) return "";
-  return `${API_BASE_URL}/juicewrld/files/download/?path=${encodeURIComponent(path)}`;
 }
 
 async function fetchJson(path, signal) {
@@ -23,6 +19,7 @@ async function fetchJson(path, signal) {
 export default function SongDetail() {
   const { id } = useParams();
   const location = useLocation();
+  const { currentSong, isPlaying, playSong, togglePlayPause } = useAudioPlayer();
   const [song, setSong] = useState(location.state?.song || null);
   const [isLoading, setIsLoading] = useState(!song);
   const [error, setError] = useState("");
@@ -54,8 +51,20 @@ export default function SongDetail() {
     return () => controller.abort();
   }, [id, song]);
 
+  function handlePlaySong() {
+    if (!song) return;
+
+    const isCurrentSong = currentSong?.id === song.id;
+    if (isCurrentSong) {
+      togglePlayPause();
+      return;
+    }
+
+    playSong(song);
+  }
+
   const songImage = buildImageUrl(song?.image_url);
-  const songAudio = buildAudioUrl(song?.path);
+  const isCurrentSong = currentSong?.id === song?.id;
 
   if (isLoading) {
     return (
@@ -67,7 +76,7 @@ export default function SongDetail() {
         >
           Back to catalog
         </Link>
-        <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
+        <div className="detail-panel detail-panel--page">
           <div className="skeleton-card" style={{ height: 300 }} />
           <div className="skeleton-card" style={{ height: 100, marginTop: 20 }} />
         </div>
@@ -102,7 +111,7 @@ export default function SongDetail() {
         Back to catalog
       </Link>
 
-      <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div className="detail-panel detail-panel--page">
         <div className="detail-artwork">
           {songImage ? (
             <img src={songImage} alt={song.name} />
@@ -140,14 +149,17 @@ export default function SongDetail() {
           </div>
         </div>
 
-        {songAudio && (
-          <div className="player-panel">
-            <audio controls preload="none" src={songAudio}>
-              Your browser does not support audio playback.
-            </audio>
-            <p className="player-note">Streaming from the API file path: {song.path}</p>
+        <div className="player-panel">
+          <div className="mobile-player-actions">
+            <button type="button" className="chip is-active" onClick={handlePlaySong}>
+              {isCurrentSong && isPlaying ? "Pause in player" : "Play in player"}
+            </button>
           </div>
-        )}
+          <p className="player-note">
+            Use the persistent player to keep audio going while you browse the site or
+            lock your phone.
+          </p>
+        </div>
 
         {song.track_titles?.length > 0 && (
           <div className="meta-block">

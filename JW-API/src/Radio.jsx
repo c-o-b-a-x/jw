@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAudioPlayer } from "./audio-player";
 import "./App.css";
 
 const API_BASE_URL = "https://juicewrldapi.com";
@@ -8,11 +9,6 @@ const SONGS_PER_PAGE = 12;
 function buildImageUrl(path) {
   if (!path) return "";
   return path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
-}
-
-function buildAudioUrl(path) {
-  if (!path) return "";
-  return `${API_BASE_URL}/juicewrld/files/download/?path=${encodeURIComponent(path)}`;
 }
 
 async function fetchJson(path, signal) {
@@ -40,13 +36,18 @@ function shuffleArray(array) {
 
 export default function Radio() {
   const [playlist, setPlaylist] = useState([]);
-  const [currentSongIndex, setCurrentSongIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isShuffled, setIsShuffled] = useState(true);
-  const [isRepeating, setIsRepeating] = useState(false);
   const [error, setError] = useState("");
-  const audioRef = useRef(null);
+  const {
+    currentSong,
+    queue,
+    isPlaying,
+    playNext,
+    playPrevious,
+    playQueue,
+    togglePlayPause,
+  } = useAudioPlayer();
 
   const fetchSongsBatch = useCallback(async (page = 1) => {
     const controller = new AbortController();
@@ -86,7 +87,11 @@ export default function Radio() {
         if (allSongs.length === 0) {
           setError("No songs available for the radio station.");
         } else {
-          setPlaylist(shuffleArray(allSongs));
+          const shuffledSongs = shuffleArray(allSongs);
+          setPlaylist(shuffledSongs);
+          if (!queue.length) {
+            playQueue(shuffledSongs, 0);
+          }
         }
       } catch {
         setError("Could not start the radio. Please try again later.");
@@ -96,92 +101,32 @@ export default function Radio() {
     }
 
     loadInitialPlaylist();
-  }, [fetchSongsBatch]);
+  }, [fetchSongsBatch, playQueue, queue.length]);
 
-  const playSong = useCallback(
-    (newIndex) => {
-      if (!audioRef.current || !playlist[newIndex]) return;
+  const radioIndex = useMemo(() => {
+    if (!playlist.length || !currentSong) return 0;
+    const songIndex = playlist.findIndex((song) => song.id === currentSong.id);
+    return songIndex >= 0 ? songIndex : 0;
+  }, [currentSong, playlist]);
 
-      const newSong = playlist[newIndex];
-      audioRef.current.src = buildAudioUrl(newSong.path);
-      audioRef.current.play().catch((playError) => {
-        console.error("Auto-play prevented:", playError);
-      });
-      setCurrentSongIndex(newIndex);
-      setIsPlaying(true);
-    },
-    [playlist],
-  );
+  function handleStartRadio() {
+    if (!playlist.length) return;
+    playQueue(playlist, radioIndex >= 0 ? radioIndex : 0);
+  }
 
-  const handleNext = useCallback(() => {
-    if (playlist.length === 0) return;
+  function handleShuffle() {
+    if (!playlist.length) return;
 
-    let nextIndex = currentSongIndex + 1;
-    if (nextIndex >= playlist.length) {
-      fetchSongsBatch(Math.floor(playlist.length / SONGS_PER_PAGE) + 1).then(
-        (newSongs) => {
-          if (newSongs.length > 0) {
-            setPlaylist((currentPlaylist) => [...currentPlaylist, ...newSongs]);
-            nextIndex = currentSongIndex + 1;
-            playSong(nextIndex);
-          } else {
-            playSong(0);
-          }
-        },
-      );
-      return;
+    if (!isShuffled) {
+      const currentRadioSong = playlist[radioIndex] ?? playlist[0];
+      const remainingSongs = playlist.filter((song) => song.id !== currentRadioSong?.id);
+      const shuffledSongs = [currentRadioSong, ...shuffleArray(remainingSongs)];
+      setPlaylist(shuffledSongs);
+      playQueue(shuffledSongs, 0);
     }
-
-    playSong(nextIndex);
-  }, [currentSongIndex, fetchSongsBatch, playSong, playlist.length]);
-
-  const handlePrevious = useCallback(() => {
-    if (playlist.length === 0) return;
-
-    let previousIndex = currentSongIndex - 1;
-    if (previousIndex < 0) previousIndex = playlist.length - 1;
-    playSong(previousIndex);
-  }, [currentSongIndex, playSong, playlist.length]);
-
-  const handleShuffle = useCallback(() => {
-    if (playlist.length === 0) return;
 
     setIsShuffled((currentValue) => !currentValue);
-    if (!isShuffled) {
-      const currentSong = playlist[currentSongIndex];
-      const remainingSongs = playlist.slice(currentSongIndex + 1);
-      setPlaylist([currentSong, ...shuffleArray(remainingSongs)]);
-      setCurrentSongIndex(0);
-    }
-  }, [currentSongIndex, isShuffled, playlist]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return undefined;
-
-    const handleEnded = () => {
-      if (isRepeating) {
-        audio.currentTime = 0;
-        audio.play();
-      } else {
-        handleNext();
-      }
-    };
-
-    audio.addEventListener("ended", handleEnded);
-    return () => audio.removeEventListener("ended", handleEnded);
-  }, [handleNext, isRepeating]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (isPlaying) {
-      audio.play().catch((playError) => console.error("Play failed:", playError));
-    } else {
-      audio.pause();
-    }
-  }, [currentSongIndex, isPlaying]);
+  }
 
   if (isLoading) {
     return (
@@ -193,10 +138,7 @@ export default function Radio() {
         >
           Back to catalog
         </Link>
-        <div
-          className="detail-panel"
-          style={{ maxWidth: 800, margin: "0 auto", textAlign: "center", padding: "48px" }}
-        >
+        <div className="detail-panel detail-panel--page detail-panel--centered">
           <div className="vinyl-ring" style={{ margin: "0 auto 32px", width: 200 }} />
           <h2>Tuning into the station...</h2>
           <p>Loading the playlist, just a moment.</p>
@@ -222,8 +164,11 @@ export default function Radio() {
     );
   }
 
-  const currentSong = playlist[currentSongIndex];
-  const imageUrl = buildImageUrl(currentSong?.image_url);
+  const queueContainsCurrentSong = currentSong
+    ? playlist.some((song) => song.id === currentSong.id)
+    : false;
+  const activeSong = queueContainsCurrentSong ? currentSong : playlist[radioIndex];
+  const imageUrl = buildImageUrl(activeSong?.image_url);
 
   return (
     <div className="app-shell">
@@ -235,10 +180,10 @@ export default function Radio() {
         Back to catalog
       </Link>
 
-      <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div className="detail-panel detail-panel--page">
         <div className="detail-artwork">
           {imageUrl ? (
-            <img src={imageUrl} alt={currentSong.name} />
+            <img src={imageUrl} alt={activeSong.name} />
           ) : (
             <div className="artwork-fallback">
               <span>999</span>
@@ -246,42 +191,32 @@ export default function Radio() {
           )}
         </div>
 
-        <div className="detail-copy" style={{ textAlign: "center" }}>
+        <div className="detail-copy radio-copy">
           <p className="eyebrow">Now Playing</p>
-          <h2>{currentSong?.name || "Unknown Track"}</h2>
-          <p>{currentSong?.credited_artists || "Juice WRLD"}</p>
-          <p className="detail-description" style={{ marginTop: 8 }}>
-            {currentSong?.era?.name || "Unknown era"} -{" "}
-            {formatCategoryLabel(currentSong?.category)}
+          <h2>{activeSong?.name || "Unknown Track"}</h2>
+          <p>{activeSong?.credited_artists || "Juice WRLD"}</p>
+          <p className="detail-description">
+            {activeSong?.era?.name || "Unknown era"} -{" "}
+            {formatCategoryLabel(activeSong?.category)}
           </p>
         </div>
 
-        <div className="player-panel" style={{ marginTop: 24 }}>
-          <audio ref={audioRef} preload="auto" />
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              gap: 16,
-              marginBottom: 16,
-              flexWrap: "wrap",
-            }}
-          >
-            <button type="button" onClick={handlePrevious} className="chip">
+        <div className="player-panel">
+          <div className="mobile-player-actions">
+            <button type="button" className="chip" onClick={playPrevious}>
               Prev
             </button>
-            <button
-              type="button"
-              onClick={() => setIsPlaying((playing) => !playing)}
-              className="chip is-active"
-            >
+            <button type="button" className="chip is-active" onClick={handleStartRadio}>
+              Start radio
+            </button>
+            <button type="button" className="chip is-active" onClick={togglePlayPause}>
               {isPlaying ? "Pause" : "Play"}
             </button>
-            <button type="button" onClick={handleNext} className="chip">
+            <button type="button" className="chip" onClick={playNext}>
               Next
             </button>
           </div>
-          <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
+          <div className="mobile-player-actions mobile-player-actions--secondary">
             <button
               type="button"
               onClick={handleShuffle}
@@ -289,33 +224,22 @@ export default function Radio() {
             >
               Shuffle
             </button>
-            <button
-              type="button"
-              onClick={() => setIsRepeating((repeating) => !repeating)}
-              className={`chip ${isRepeating ? "is-active" : ""}`}
-            >
-              Repeat
-            </button>
           </div>
+          <p className="player-note">
+            The shared player stays mounted so playback can continue while you browse
+            other pages or background your phone browser.
+          </p>
         </div>
 
-        <div className="meta-block" style={{ marginTop: 24 }}>
+        <div className="meta-block">
           <p className="block-label">Coming up next</p>
-          <div style={{ maxHeight: 200, overflowY: "auto" }}>
-            {playlist
-              .slice(currentSongIndex + 1, currentSongIndex + 6)
-              .map((song) => (
-                <div
-                  key={song.id}
-                  style={{
-                    padding: "8px 0",
-                    borderBottom: "1px solid var(--panel-border)",
-                  }}
-                >
-                  <strong>{song.name}</strong> - {song.credited_artists || "Juice WRLD"}
-                </div>
-              ))}
-            {playlist.length - currentSongIndex - 1 < 5 && (
+          <div className="radio-queue">
+            {playlist.slice(radioIndex + 1, radioIndex + 6).map((song) => (
+              <div key={song.id} className="radio-queue__item">
+                <strong>{song.name}</strong> - {song.credited_artists || "Juice WRLD"}
+              </div>
+            ))}
+            {playlist.length - radioIndex - 1 < 5 && (
               <p style={{ color: "var(--text-muted)", marginTop: 8 }}>
                 More tracks loading soon...
               </p>
