@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAudioPlayer } from "./audio-player";
 import "./App.css";
 import logo from "./assets/logo999.png";
 
@@ -42,6 +43,9 @@ export default function App() {
   const songsRef = useRef(null);
   const footerRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { currentSong, isPlaying, currentTime, duration, recentSongs, playSong } =
+    useAudioPlayer();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -180,10 +184,19 @@ export default function App() {
   const topCategories = Object.entries(categoryStats)
     .sort((left, right) => right[1] - left[1])
     .slice(0, 3);
+  const featuredSongs = useMemo(() => songs.slice(0, 3), [songs]);
+  const currentProgress =
+    duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
 
   function handleCategoryChange(event) {
     setActiveCategory(event.target.value);
     setPage(1);
+  }
+
+  function openRandomSong() {
+    if (!songs.length) return;
+    const randomSong = songs[Math.floor(Math.random() * songs.length)];
+    navigate(`/song/${randomSong.id}`, { state: { song: randomSong } });
   }
 
   return (
@@ -297,6 +310,26 @@ export default function App() {
               This React site is powered by the Juice WRLD API song catalog,
               with live search, category filters, and individual song pages.
             </p>
+            <div className="hero-actions">
+              <button
+                type="button"
+                className="cta-button"
+                onClick={() => scrollToSection("explore", "explore")}
+              >
+                Browse tracks
+              </button>
+              <Link className="cta-button cta-button--secondary" to="/radio">
+                Start radio
+              </Link>
+              <button
+                type="button"
+                className="cta-button cta-button--ghost"
+                onClick={openRandomSong}
+                disabled={!songs.length}
+              >
+                Random song
+              </button>
+            </div>
             <div className="hero-stats">
               <article>
                 <span>Total songs</span>
@@ -328,6 +361,75 @@ export default function App() {
             </div>
           </div>
         </section>
+
+        {(currentSong || recentSongs.length > 0) && (
+          <section className="discover-grid" aria-label="Listening shortcuts">
+            {currentSong ? (
+              <article className="mini-panel">
+                <div className="mini-panel__header">
+                  <div>
+                    <p className="eyebrow">Continue listening</p>
+                    <h2>{currentSong.name}</h2>
+                  </div>
+                  <span className="mini-badge">
+                    {isPlaying ? "Playing now" : "Ready to resume"}
+                  </span>
+                </div>
+                <p className="section-subtitle">
+                  Keep your current session moving while you browse the archive.
+                </p>
+                <div className="progress-strip" aria-hidden="true">
+                  <span style={{ width: `${currentProgress}%` }} />
+                </div>
+                <div className="mini-action-row">
+                  <button
+                    type="button"
+                    className="chip is-active"
+                    onClick={() => playSong(currentSong)}
+                  >
+                    Restart track
+                  </button>
+                  <Link
+                    className="chip"
+                    to={`/song/${currentSong.id}`}
+                    state={{ song: currentSong }}
+                  >
+                    Open details
+                  </Link>
+                </div>
+              </article>
+            ) : null}
+
+            <article className="mini-panel">
+              <div className="mini-panel__header">
+                <div>
+                  <p className="eyebrow">Recently played</p>
+                  <h2>Pick up where you left off</h2>
+                </div>
+                <span className="mini-badge">{formatCount(recentSongs.length)}</span>
+              </div>
+              <div className="mini-song-list">
+                {recentSongs.length > 0 ? (
+                  recentSongs.map((song) => (
+                    <button
+                      key={song.id}
+                      type="button"
+                      className="mini-song-item"
+                      onClick={() => playSong(song)}
+                    >
+                      <strong>{song.name}</strong>
+                      <span>{song.credited_artists || "Juice WRLD"}</span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="section-subtitle">
+                    Songs you play on the site will show up here for quick access.
+                  </p>
+                )}
+              </div>
+            </article>
+          </section>
+        )}
 
         <section className="filter-bar">
           <label className="field">
@@ -403,6 +505,10 @@ export default function App() {
             <div>
               <p className="eyebrow">Tracks</p>
               <h2>Explore the catalog</h2>
+              <p className="section-subtitle">
+                Move between search, random discovery, and quick replays without
+                losing playback.
+              </p>
             </div>
             <div className="pager">
               <button
@@ -423,6 +529,36 @@ export default function App() {
               </button>
             </div>
           </div>
+
+          {featuredSongs.length > 0 && !isLoading && (
+            <section className="quick-picks" aria-label="Quick picks">
+              {featuredSongs.map((song, index) => (
+                <article key={song.id} className="quick-pick-card">
+                  <span className="quick-pick-card__index">0{index + 1}</span>
+                  <div>
+                    <h3>{song.name}</h3>
+                    <p>{song.credited_artists || "Juice WRLD"}</p>
+                  </div>
+                  <div className="mini-action-row">
+                    <button
+                      type="button"
+                      className="chip is-active"
+                      onClick={() => playSong(song)}
+                    >
+                      Play now
+                    </button>
+                    <Link
+                      to={`/song/${song.id}`}
+                      state={{ song }}
+                      className="chip"
+                    >
+                      Details
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </section>
+          )}
 
           <div className="song-grid">
             {isLoading

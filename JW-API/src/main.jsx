@@ -14,8 +14,8 @@ import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <AudioPlayerProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AudioPlayerProvider>
         <Routes>
           <Route path="/" element={<App />} />
           <Route path="/song/:id" element={<SongDetail />} />
@@ -26,7 +26,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/create-playlist" element={<CreatePlaylist />} />
           <Route path="/shared/:shareId" element={<SharedPlaylist />} />
         </Routes>
-      </BrowserRouter>
-    </AudioPlayerProvider>
+      </AudioPlayerProvider>
+    </BrowserRouter>
   </React.StrictMode>,
 );

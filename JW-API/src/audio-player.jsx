@@ -8,8 +8,10 @@ import {
   useRef,
   useState,
 } from "react";
+import { Link } from "react-router-dom";
 
 const API_BASE_URL = "https://juicewrldapi.com";
+const RECENT_SONGS_STORAGE_KEY = "jw_recent_songs";
 
 function buildAudioUrl(path) {
   if (!path) return "";
@@ -30,8 +32,45 @@ export function AudioPlayerProvider({ children }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState("");
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [recentSongs, setRecentSongs] = useState(() => {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const stored = window.localStorage.getItem(RECENT_SONGS_STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
 
   const currentSong = currentIndex >= 0 ? queue[currentIndex] : null;
+
+  const rememberSong = useCallback((song) => {
+    if (!song) return;
+
+    setRecentSongs((currentSongs) => {
+      const nextSongs = [
+        song,
+        ...currentSongs.filter((currentEntry) => currentEntry.id !== song.id),
+      ].slice(0, 6);
+
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(
+            RECENT_SONGS_STORAGE_KEY,
+            JSON.stringify(nextSongs),
+          );
+        } catch {
+          // Ignore storage failures.
+        }
+      }
+
+      return nextSongs;
+    });
+  }, []);
 
   const syncMediaSession = useCallback((song) => {
     if (!song || typeof navigator === "undefined" || !("mediaSession" in navigator)) {
@@ -104,7 +143,9 @@ export function AudioPlayerProvider({ children }) {
     }
 
     syncMediaSession(song);
+    rememberSong(song);
     setError("");
+    setCurrentTime(0);
 
     if (shouldAutoPlay) {
       audio
@@ -118,7 +159,7 @@ export function AudioPlayerProvider({ children }) {
           setError("Tap play again to start playback on this device.");
         });
     }
-  }, [syncMediaSession]);
+  }, [rememberSong, syncMediaSession]);
 
   const playQueue = useCallback((nextQueue, startIndex = 0, shouldAutoPlay = true) => {
     if (!nextQueue?.length) return;
@@ -188,6 +229,15 @@ export function AudioPlayerProvider({ children }) {
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => playNext();
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime || 0);
+    };
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration || 0);
+    };
+    const handleDurationChange = () => {
+      setDuration(audio.duration || 0);
+    };
     const handleError = () => {
       setIsPlaying(false);
       setError("This track could not be played on mobile right now.");
@@ -196,12 +246,18 @@ export function AudioPlayerProvider({ children }) {
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
     audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("durationchange", handleDurationChange);
     audio.addEventListener("error", handleError);
 
     return () => {
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("durationchange", handleDurationChange);
       audio.removeEventListener("error", handleError);
     };
   }, [playNext]);
@@ -214,6 +270,9 @@ export function AudioPlayerProvider({ children }) {
       isPlaying,
       isReady,
       error,
+      currentTime,
+      duration,
+      recentSongs,
       playSong,
       playQueue,
       playNext,
@@ -228,6 +287,9 @@ export function AudioPlayerProvider({ children }) {
       isPlaying,
       isReady,
       error,
+      currentTime,
+      duration,
+      recentSongs,
       playSong,
       playQueue,
       playNext,
@@ -259,6 +321,8 @@ function PersistentPlayer() {
     currentSong,
     isPlaying,
     error,
+    currentTime,
+    duration,
     playNext,
     playPrevious,
     stopPlayback,
@@ -280,8 +344,17 @@ function PersistentPlayer() {
           <div className="persistent-player__fallback">999</div>
         )}
         <div className="persistent-player__copy">
-          <strong>{currentSong.name}</strong>
+          <strong>
+            <Link to={`/song/${currentSong.id}`} state={{ song: currentSong }}>
+              {currentSong.name}
+            </Link>
+          </strong>
           <span>{currentSong.credited_artists || "Juice WRLD"}</span>
+          {duration > 0 ? (
+            <small>
+              {formatPlaybackTime(currentTime)} / {formatPlaybackTime(duration)}
+            </small>
+          ) : null}
           {error ? <small>{error}</small> : null}
         </div>
       </div>
@@ -302,4 +375,13 @@ function PersistentPlayer() {
       </div>
     </div>
   );
+}
+
+function formatPlaybackTime(value) {
+  if (!Number.isFinite(value) || value <= 0) return "0:00";
+
+  const totalSeconds = Math.floor(value);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
