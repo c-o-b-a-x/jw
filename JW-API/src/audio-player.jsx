@@ -120,17 +120,23 @@ export function AudioPlayerProvider({ children }) {
     }
   }, [syncMediaSession]);
 
-  const playQueue = useCallback((nextQueue, startIndex = 0) => {
+  const playQueue = useCallback((nextQueue, startIndex = 0, shouldAutoPlay = true) => {
     if (!nextQueue?.length) return;
 
     setQueue(nextQueue);
     setCurrentIndex(startIndex);
     setIsReady(true);
-  }, []);
+    if (shouldAutoPlay) {
+      const nextSong = nextQueue[startIndex];
+      if (nextSong) {
+        loadSong(nextSong, true);
+      }
+    }
+  }, [loadSong]);
 
   const playSong = useCallback((song) => {
     if (!song) return;
-    playQueue([song], 0);
+    playQueue([song], 0, true);
   }, [playQueue]);
 
   const togglePlayPause = useCallback(() => {
