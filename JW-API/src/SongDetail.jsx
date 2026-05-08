@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useAudioPlayer } from "./audio-player";
 import {
+  buildAudioUrl,
   buildImageUrl,
   fetchSong,
   fetchSongs,
@@ -136,6 +137,7 @@ export default function SongDetail() {
   }, [song]);
 
   const songImage = buildImageUrl(song?.image_url);
+  const downloadUrl = buildAudioUrl(song?.path);
   const isCurrentSong = currentSong?.id === song?.id;
   const metaRows = useMemo(() => (song ? createMetaRows(song) : []), [song]);
   const sessionNotes = useMemo(() => (song ? createSessionNotes(song) : []), [song]);
@@ -238,6 +240,15 @@ export default function SongDetail() {
               <button type="button" className="chip is-active" onClick={handlePlaySong}>
                 {isCurrentSong && isPlaying ? "Pause in player" : "Play in player"}
               </button>
+              {downloadUrl ? (
+                <a
+                  href={downloadUrl}
+                  className="chip"
+                  download={`${song.name || "juice-wrld-track"}.mp3`}
+                >
+                  Download MP3
+                </a>
+              ) : null}
               <Link to="/radio" className="chip">
                 Open radio
               </Link>
