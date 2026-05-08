@@ -1,29 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAudioPlayer } from "./audio-player";
+import {
+  SONGS_PER_PAGE,
+  fetchSongs,
+  fetchCategories,
+  fetchStats,
+  formatCategoryLabel,
+  formatCount,
+} from "./api";
 import "./App.css";
 import logo from "./assets/logo999.png";
-
-const SONGS_PER_PAGE = 12;
-const API_BASE_URL = "https://juicewrldapi.com";
-
-async function fetchJson(path, signal) {
-  const response = await fetch(`${API_BASE_URL}${path}`, { signal });
-  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-  return response.json();
-}
-
-function formatCategoryLabel(value) {
-  if (!value) return "All songs";
-  return String(value)
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function formatCount(value) {
-  return new Intl.NumberFormat("en-US").format(value ?? 0);
-}
 
 export default function App() {
   const [songs, setSongs] = useState([]);
@@ -114,8 +101,8 @@ export default function App() {
     async function loadBootstrapData() {
       try {
         const [categoriesData, statsData] = await Promise.all([
-          fetchJson("/juicewrld/categories/", controller.signal),
-          fetchJson("/juicewrld/stats/", controller.signal),
+          fetchCategories({ signal: controller.signal }),
+          fetchStats({ signal: controller.signal }),
         ]);
 
         setCategories(categoriesData.categories ?? []);
@@ -143,17 +130,14 @@ export default function App() {
       setErrorMessage("");
 
       try {
-        const params = new URLSearchParams({
-          page: String(page),
-          page_size: String(SONGS_PER_PAGE),
-        });
-
-        if (activeCategory) params.set("category", activeCategory);
-        if (searchTerm) params.set("search", searchTerm);
-
-        const data = await fetchJson(
-          `/juicewrld/songs/?${params.toString()}`,
-          controller.signal,
+        const data = await fetchSongs(
+          {
+            page,
+            pageSize: SONGS_PER_PAGE,
+            category: activeCategory,
+            search: searchTerm,
+          },
+          { signal: controller.signal },
         );
         const results = data.results ?? [];
 

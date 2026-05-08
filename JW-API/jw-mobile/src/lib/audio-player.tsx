@@ -40,6 +40,10 @@ type AudioPlayerContextValue = {
 
 const AudioPlayerContext = createContext<AudioPlayerContextValue | null>(null);
 
+function getPlayableSongs(songs: Song[]) {
+  return songs.filter((song) => Boolean(song.path));
+}
+
 function buildLockScreenMetadata(song: Song) {
   return {
     title: song.name,
@@ -139,15 +143,25 @@ export function AudioPlayerProvider({ children }: PropsWithChildren) {
   }
 
   function playSong(song: Song) {
+    if (!song.path) return;
+
     queueRef.current = [song];
+    queueIndexRef.current = 0;
     setQueueIndex(0);
     loadSong(song, true);
   }
 
   function playQueue(songs: Song[], startIndex = 0) {
-    if (!songs.length || !songs[startIndex]) return;
-    queueRef.current = songs;
-    playFromQueue(startIndex);
+    const playableSongs = getPlayableSongs(songs);
+    if (!playableSongs.length) return;
+
+    const requestedSong = songs[startIndex];
+    const normalizedIndex = requestedSong?.id
+      ? playableSongs.findIndex((song) => song.id === requestedSong.id)
+      : -1;
+
+    queueRef.current = playableSongs;
+    playFromQueue(normalizedIndex >= 0 ? normalizedIndex : 0);
   }
 
   function togglePlayback() {
@@ -168,13 +182,15 @@ export function AudioPlayerProvider({ children }: PropsWithChildren) {
   }
 
   function playNext() {
-    if (queueIndex + 1 >= queueRef.current.length) return;
-    playFromQueue(queueIndex + 1);
+    if (!queueRef.current.length) return;
+    const nextIndex = queueIndex + 1 >= queueRef.current.length ? 0 : queueIndex + 1;
+    playFromQueue(nextIndex);
   }
 
   function playPrevious() {
-    if (queueIndex <= 0) return;
-    playFromQueue(queueIndex - 1);
+    if (!queueRef.current.length) return;
+    const previousIndex = queueIndex <= 0 ? queueRef.current.length - 1 : queueIndex - 1;
+    playFromQueue(previousIndex);
   }
 
   const value: AudioPlayerContextValue = {

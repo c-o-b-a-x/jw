@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import "./App.css";
+import logo from "./assets/logo999.png";
 
 export default function About() {
   return (
@@ -15,16 +16,18 @@ export default function About() {
       <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
         <div className="detail-artwork">
           <div className="artwork-fallback">
-            <span>999</span>
+            <span>
+              <img src={logo} alt="" />
+            </span>
           </div>
         </div>
 
         <div className="detail-copy">
           <p className="eyebrow">About this project</p>
-          <h2>Juice WRLD API Explorer</h2>
+          <h2>Juice WRLD Unreleased </h2>
           <p className="detail-description">
-            A fan-made web app that lets you search, browse, and stream songs from
-            the Juice WRLD discography. All data is provided by the{" "}
+            A fan-made web app that lets you search, browse, and stream songs
+            from the Juice WRLD discography. All data is provided by the{" "}
             <a
               href="https://juicewrldapi.com"
               target="_blank"
@@ -77,8 +80,14 @@ export default function About() {
         <div className="meta-block">
           <p className="block-label">Credits</p>
           <ul className="detail-list">
-            <li>All song metadata, artwork, and audio files are served by the Juice WRLD API.</li>
-            <li>Special thanks to the API maintainers and the Juice WRLD community.</li>
+            <li>
+              All song metadata, artwork, and audio files are served by the
+              Juice WRLD API.
+            </li>
+            <li>
+              Special thanks to the API maintainers and the Juice WRLD
+              community.
+            </li>
             <li>LLJW</li>
           </ul>
         </div>

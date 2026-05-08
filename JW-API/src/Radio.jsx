@@ -1,29 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAudioPlayer } from "./audio-player";
+import {
+  SONGS_PER_PAGE,
+  buildImageUrl,
+  fetchSongs,
+  formatCategoryLabel,
+} from "./api";
 import "./App.css";
-
-const API_BASE_URL = "https://juicewrldapi.com";
-const SONGS_PER_PAGE = 12;
-
-function buildImageUrl(path) {
-  if (!path) return "";
-  return path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
-}
-
-async function fetchJson(path, signal) {
-  const response = await fetch(`${API_BASE_URL}${path}`, { signal });
-  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-  return response.json();
-}
-
-function formatCategoryLabel(value) {
-  if (!value) return "All songs";
-  return String(value)
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 function shuffleArray(array) {
   const shuffled = [...array];
@@ -53,14 +37,12 @@ export default function Radio() {
     const controller = new AbortController();
 
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        page_size: String(SONGS_PER_PAGE),
-      });
-
-      const data = await fetchJson(
-        `/juicewrld/songs/?${params.toString()}`,
-        controller.signal,
+      const data = await fetchSongs(
+        {
+          page,
+          pageSize: SONGS_PER_PAGE,
+        },
+        { signal: controller.signal },
       );
       return data.results || [];
     } catch (fetchError) {

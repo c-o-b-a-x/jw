@@ -11,10 +11,10 @@
   --bg-soft: rgba(255, 255, 255, 0.04);
   --bg-strong: rgba(255, 255, 255, 0.08);
 
-  --accent: #f36b21;
-  --accent-strong: #ff8c42;
-  --accent-soft: rgba(243, 107, 33, 0.16);
-  --accent-glow: rgba(243, 107, 33, 0.3);
+  --accent: #ff4fa3;
+  --accent-strong: #ff7fbd;
+  --accent-soft: rgba(255, 79, 163, 0.16);
+  --accent-glow: rgba(255, 79, 163, 0.32);
 
   --text-primary: #f4eee5;
   --text-secondary: #c9c2b7;
@@ -42,10 +42,10 @@ body {
   background:
     radial-gradient(
       circle at top left,
-      rgba(243, 107, 33, 0.14),
+      rgba(255, 79, 163, 0.16),
       transparent 28%
     ),
-    radial-gradient(circle at right, rgba(255, 174, 66, 0.08), transparent 24%),
+    radial-gradient(circle at right, rgba(255, 127, 189, 0.1), transparent 24%),
     linear-gradient(180deg, #111316, #070809 42%, #050607);
 }
 
@@ -123,7 +123,7 @@ select {
 
 .navbar-logo:hover {
   transform: translateY(-1px) scale(1.03);
-  filter: drop-shadow(0 12px 20px rgba(243, 107, 33, 0.18));
+  filter: drop-shadow(0 12px 20px rgba(255, 79, 163, 0.2));
 }
 
 .menu-toggle {
@@ -205,7 +205,7 @@ select {
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(243, 107, 33, 0.24),
+    rgba(255, 79, 163, 0.24),
     transparent 70%
   );
   pointer-events: none;
@@ -277,7 +277,7 @@ select {
   cursor: pointer;
   text-decoration: none;
   font-weight: 700;
-  box-shadow: 0 12px 24px rgba(243, 107, 33, 0.2);
+  box-shadow: 0 12px 24px rgba(255, 79, 163, 0.22);
 }
 
 .cta-button--secondary,
@@ -341,7 +341,7 @@ select {
   background:
     radial-gradient(
       circle at center,
-      rgba(243, 107, 33, 0.75) 0 10%,
+      rgba(255, 79, 163, 0.8) 0 10%,
       transparent 11%
     ),
     repeating-radial-gradient(
@@ -349,7 +349,7 @@ select {
       rgba(255, 255, 255, 0.08) 0 2px,
       transparent 2px 8px
     ),
-    linear-gradient(145deg, rgba(243, 107, 33, 0.14), rgba(255, 255, 255, 0.03));
+    linear-gradient(145deg, rgba(255, 79, 163, 0.16), rgba(255, 255, 255, 0.03));
   box-shadow:
     inset 0 0 28px rgba(0, 0, 0, 0.3),
     0 18px 30px rgba(0, 0, 0, 0.35);
@@ -562,7 +562,7 @@ select {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), #ffb07a);
+  background: linear-gradient(90deg, var(--accent), #ff9aca);
 }
 
 .mini-action-row {
@@ -629,7 +629,7 @@ select {
 .chip:hover {
   transform: translateY(-1px);
   background: var(--accent-soft);
-  border-color: rgba(243, 107, 33, 0.45);
+  border-color: rgba(255, 79, 163, 0.45);
   color: var(--text-primary);
 }
 
@@ -637,7 +637,7 @@ select {
   background: var(--accent);
   color: #160f09;
   border-color: transparent;
-  box-shadow: 0 10px 22px rgba(243, 107, 33, 0.24);
+  box-shadow: 0 10px 22px rgba(255, 79, 163, 0.24);
 }
 
 .chip:disabled {
@@ -650,13 +650,40 @@ select {
   margin-top: 18px;
   padding: 16px 18px;
   border-radius: 18px;
-  background: rgba(243, 107, 33, 0.08);
+  background: rgba(255, 79, 163, 0.1);
   color: var(--text-primary);
 }
 
 .song-list-panel,
 .detail-panel {
   padding: 24px;
+}
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.72fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.detail-layout--page .detail-panel--page {
+  max-width: none;
+  margin: 0;
+}
+
+.detail-sidebar {
+  display: grid;
+  gap: 18px;
+  position: sticky;
+  top: 20px;
+}
+
+.detail-sidecard {
+  padding: 20px;
+  border-radius: 24px;
+  background: rgba(19, 21, 27, 0.9);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
 }
 
 .content-grid {
@@ -674,6 +701,11 @@ select {
   gap: 16px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.block-hint {
+  color: var(--text-muted);
+  font-size: 0.78rem;
 }
 
 .section-heading h2,
@@ -719,7 +751,7 @@ select {
 
 .song-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(243, 107, 33, 0.4);
+  border-color: rgba(255, 79, 163, 0.4);
   box-shadow: 0 16px 26px rgba(0, 0, 0, 0.28);
 }
 
@@ -784,7 +816,7 @@ select {
   border-radius: 24px;
   background: linear-gradient(
     145deg,
-    rgba(243, 107, 33, 0.16),
+    rgba(255, 79, 163, 0.16),
     rgba(255, 255, 255, 0.03)
   );
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -849,6 +881,38 @@ select {
 .pill-wrap {
   gap: 8px;
   margin-top: 10px;
+}
+
+.session-grid,
+.related-song-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.session-card,
+.related-song-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(6, 7, 9, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.session-card span,
+.related-song-card span {
+  display: block;
+  color: var(--text-muted);
+}
+
+.session-card strong,
+.related-song-card strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-primary);
+}
+
+.related-song-card .mini-action-row {
+  margin-top: 14px;
 }
 
 .meta-pill {
@@ -996,7 +1060,7 @@ select {
 }
 
 .persistent-player__copy small {
-  color: #ffb07a;
+  color: #ff9aca;
   font-size: 0.74rem;
 }
 
@@ -1032,7 +1096,7 @@ select {
 }
 
 .github-link:hover .github-logo {
-  filter: invert(0.65) sepia(1) saturate(4) hue-rotate(348deg);
+  filter: invert(0.6) sepia(1) saturate(4.5) hue-rotate(286deg);
 }
 
 ::-webkit-scrollbar {
@@ -1050,7 +1114,7 @@ select {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(243, 107, 33, 0.5);
+  background: rgba(255, 79, 163, 0.5);
 }
 
 @keyframes pulse {
@@ -1075,6 +1139,7 @@ select {
   .hero-panel,
   .filter-bar,
   .content-grid,
+  .detail-layout,
   .discover-grid,
   .quick-picks {
     grid-template-columns: 1fr;
@@ -1086,6 +1151,10 @@ select {
   }
 
   .detail-panel {
+    position: static;
+  }
+
+  .detail-sidebar {
     position: static;
   }
 }

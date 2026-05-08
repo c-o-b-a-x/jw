@@ -22,6 +22,10 @@ function shuffleSongs(songs: Song[]) {
   return copy;
 }
 
+function getPlayableSongs(songs: Song[]) {
+  return songs.filter((song) => Boolean(song.path));
+}
+
 export default function RadioScreen() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -40,11 +44,19 @@ export default function RadioScreen() {
           fetchSongs({ page: 3, signal: controller.signal }),
         ]);
 
-        setSongs(shuffleSongs([
+        const playableSongs = getPlayableSongs([
           ...(firstBatch.results ?? []),
           ...(secondBatch.results ?? []),
           ...(thirdBatch.results ?? []),
-        ]));
+        ]);
+
+        if (!playableSongs.length) {
+          setError("No playable radio songs were returned by the API.");
+          setSongs([]);
+          return;
+        }
+
+        setSongs(shuffleSongs(playableSongs));
       } catch {
         setError("Could not load the radio station.");
       }
@@ -66,7 +78,12 @@ export default function RadioScreen() {
   const currentRadioSong = songs[currentIndex];
 
   function handlePlayRadio() {
-    if (!songs.length || !currentRadioSong?.path) return;
+    if (!songs.length || !currentRadioSong?.path) {
+      setError("This station item is missing a playable audio file.");
+      return;
+    }
+
+    setError("");
     playQueue(songs, currentIndex);
   }
 
