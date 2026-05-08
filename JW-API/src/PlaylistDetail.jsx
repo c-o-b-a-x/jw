@@ -89,7 +89,9 @@ export default function PlaylistDetail() {
     if (!playlist) return;
 
     const shareToken = buildShareToken(playlist);
-    setShareLink(`${window.location.origin}/shared/${shareToken}`);
+    setShareLink(
+      `${window.location.origin}/shared?playlist=${encodeURIComponent(shareToken)}`,
+    );
   }
 
   function copyToClipboard() {
@@ -162,11 +164,11 @@ export default function PlaylistDetail() {
                 readOnly
                 style={{
                   flex: "1 1 280px",
-                  background: "var(--control-bg)",
+                  background: "var(--bg-soft)",
                   border: "1px solid var(--control-border)",
                   padding: "12px 14px",
                   borderRadius: 12,
-                  color: "var(--heading)",
+                  color: "var(--text-primary)",
                 }}
               />
               <button type="button" onClick={copyToClipboard} className="chip">
@@ -193,10 +195,10 @@ export default function PlaylistDetail() {
               width: "100%",
               padding: "12px 14px",
               marginBottom: 12,
-              background: "var(--control-bg)",
+              background: "var(--bg-soft)",
               border: "1px solid var(--control-border)",
               borderRadius: 12,
-              color: "var(--heading)",
+              color: "var(--text-primary)",
             }}
           />
           <div style={{ maxHeight: 200, overflowY: "auto" }}>
@@ -237,7 +239,7 @@ export default function PlaylistDetail() {
         <div className="meta-block">
           <p className="block-label">Songs in this playlist</p>
           {playlist.songs?.length === 0 ? (
-            <p style={{ color: "var(--muted)" }}>
+            <p style={{ color: "var(--text-muted)" }}>
               No songs yet. Use the search above to add some.
             </p>
           ) : (
@@ -256,7 +258,7 @@ export default function PlaylistDetail() {
                   <Link
                     to={`/song/${song.id}`}
                     style={{
-                      color: "var(--heading)",
+                      color: "var(--text-primary)",
                       textDecoration: "none",
                     }}
                   >
@@ -266,7 +268,7 @@ export default function PlaylistDetail() {
                     type="button"
                     onClick={() => handleRemoveSong(song.id)}
                     className="chip"
-                    style={{ background: "rgba(224, 90, 26, 0.2)" }}
+                    style={{ background: "rgba(255, 79, 163, 0.16)" }}
                   >
                     Remove
                   </button>

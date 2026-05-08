@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import "./App.css";
 import { parseShareToken } from "./playlistStore";
 
@@ -19,13 +19,15 @@ async function fetchSong(songId, signal) {
 
 export default function SharedPlaylist() {
   const { shareId } = useParams();
+  const [searchParams] = useSearchParams();
   const [playlist, setPlaylist] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
-    const sharedPayload = parseShareToken(shareId);
+    const resolvedShareToken = shareId || searchParams.get("playlist") || "";
+    const sharedPayload = parseShareToken(resolvedShareToken);
 
     async function loadSharedPlaylist() {
       if (!sharedPayload) {
@@ -57,7 +59,7 @@ export default function SharedPlaylist() {
     loadSharedPlaylist();
 
     return () => controller.abort();
-  }, [shareId]);
+  }, [searchParams, shareId]);
 
   if (isLoading) {
     return (
@@ -127,7 +129,7 @@ export default function SharedPlaylist() {
                 <Link
                   to={`/song/${song.id}`}
                   style={{
-                    color: "var(--heading)",
+                    color: "var(--text-primary)",
                     textDecoration: "none",
                   }}
                 >

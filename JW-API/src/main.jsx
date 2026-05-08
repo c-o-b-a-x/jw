@@ -24,6 +24,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/playlists" element={<Playlists />} />
           <Route path="/playlist/:id" element={<PlaylistDetail />} />
           <Route path="/create-playlist" element={<CreatePlaylist />} />
+          <Route path="/shared" element={<SharedPlaylist />} />
           <Route path="/shared/:shareId" element={<SharedPlaylist />} />
         </Routes>
       </AudioPlayerProvider>
