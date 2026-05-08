@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAudioPlayer } from "./audio-player";
 import {
   SONGS_PER_PAGE,
@@ -9,6 +9,11 @@ import {
   formatCategoryLabel,
   formatCount,
 } from "./api";
+import {
+  addSongToPlaylist,
+  createPlaylist,
+  listPlaylists,
+} from "./playlistStore";
 import "./App.css";
 import logo from "./assets/logo999.png";
 
@@ -23,6 +28,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [spotlightIndex, setSpotlightIndex] = useState(0);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("home");
@@ -31,8 +37,12 @@ export default function App() {
   const footerRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { currentSong, isPlaying, currentTime, duration, recentSongs, playSong } =
     useAudioPlayer();
+  const [playlistPickerSong, setPlaylistPickerSong] = useState(null);
+  const [availablePlaylists, setAvailablePlaylists] = useState([]);
+  const [playlistNotice, setPlaylistNotice] = useState("");
 
   useEffect(() => {
     const handleScroll = () => {
@@ -94,6 +104,20 @@ export default function App() {
 
     return () => window.clearTimeout(timeoutId);
   }, [searchInput]);
+
+  useEffect(() => {
+    const nextSearch = searchParams.get("search") ?? "";
+    const nextCategory = searchParams.get("category") ?? "";
+
+    const frameId = window.requestAnimationFrame(() => {
+      setSearchInput(nextSearch);
+      setSearchTerm(nextSearch);
+      setActiveCategory(nextCategory);
+      setPage(1);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [searchParams]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -163,24 +187,85 @@ export default function App() {
     return () => controller.abort();
   }, [activeCategory, page, searchTerm]);
 
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (!songs.length) {
+        setSpotlightIndex(0);
+        return;
+      }
+
+      const nextIndex = Math.floor(Math.random() * songs.length);
+      setSpotlightIndex(nextIndex);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [songs]);
+
   const totalSongs = stats?.total_songs ?? 2452;
   const categoryStats = stats?.category_stats ?? {};
   const topCategories = Object.entries(categoryStats)
     .sort((left, right) => right[1] - left[1])
     .slice(0, 3);
   const featuredSongs = useMemo(() => songs.slice(0, 3), [songs]);
+  const spotlightSong = songs[spotlightIndex] ?? null;
   const currentProgress =
     duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
 
   function handleCategoryChange(event) {
-    setActiveCategory(event.target.value);
+    const nextCategory = event.target.value;
+    setActiveCategory(nextCategory);
     setPage(1);
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams);
+      if (nextCategory) {
+        nextParams.set("category", nextCategory);
+      } else {
+        nextParams.delete("category");
+      }
+      return nextParams;
+    });
   }
 
   function openRandomSong() {
     if (!songs.length) return;
     const randomSong = songs[Math.floor(Math.random() * songs.length)];
     navigate(`/song/${randomSong.id}`, { state: { song: randomSong } });
+  }
+
+  function openPlaylistPicker(song) {
+    setAvailablePlaylists(listPlaylists());
+    setPlaylistNotice("");
+    setPlaylistPickerSong(song);
+  }
+
+  function closePlaylistPicker() {
+    setPlaylistPickerSong(null);
+    setPlaylistNotice("");
+  }
+
+  function handleQuickCreatePlaylist() {
+    if (!playlistPickerSong) return;
+
+    const playlist = createPlaylist({
+      name: `Favorites ${new Date().toLocaleDateString("en-US")}`,
+      songs: [playlistPickerSong],
+    });
+
+    setAvailablePlaylists(listPlaylists());
+    setPlaylistNotice(`Added to new playlist "${playlist.name}".`);
+  }
+
+  function handleAddSongToPlaylist(playlistId) {
+    if (!playlistPickerSong) return;
+
+    const updatedPlaylist = addSongToPlaylist(playlistId, playlistPickerSong);
+    if (!updatedPlaylist) {
+      setPlaylistNotice("That playlist could not be updated.");
+      return;
+    }
+
+    setAvailablePlaylists(listPlaylists());
+    setPlaylistNotice(`Saved in "${updatedPlaylist.name}".`);
   }
 
   return (
@@ -336,7 +421,7 @@ export default function App() {
             <div className="vinyl-ring" />
             <div className="spotlight-card">
               <p className="spotlight-label">Now spotlighting</p>
-              <h2>{songs[0]?.name ?? "Loading tracks..."}</h2>
+              <h2>{spotlightSong?.name ?? "Loading tracks..."}</h2>
               <p>Tap into the archive and open any song for full details.</p>
               <div className="spotlight-meta">
                 <span>999</span>
@@ -421,7 +506,19 @@ export default function App() {
             <input
               type="search"
               value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setSearchInput(nextValue);
+                setSearchParams((currentParams) => {
+                  const nextParams = new URLSearchParams(currentParams);
+                  if (nextValue.trim()) {
+                    nextParams.set("search", nextValue.trim());
+                  } else {
+                    nextParams.delete("search");
+                  }
+                  return nextParams;
+                });
+              }}
               placeholder="Search by title, artist, or phrase"
             />
           </label>
@@ -554,13 +651,20 @@ export default function App() {
                   />
                 ))
               : songs.map((song) => (
-                  <Link
-                    to={`/song/${song.id}`}
-                    state={{ song }}
-                    key={song.id}
-                    className="song-card"
-                    style={{ textDecoration: "none", display: "block" }}
-                  >
+                  <article key={song.id} className="song-card song-card--interactive">
+                    <button
+                      type="button"
+                      className="song-card__playlist-button"
+                      aria-label={`Add ${song.name} to playlist`}
+                      onClick={() => openPlaylistPicker(song)}
+                    >
+                      +
+                    </button>
+                    <Link
+                      to={`/song/${song.id}`}
+                      state={{ song }}
+                      className="song-card__link"
+                    >
                     <div className="song-card-top">
                       <span className="song-tag">
                         {formatCategoryLabel(song.category)}
@@ -575,7 +679,8 @@ export default function App() {
                       <span>{song.era?.name || "Unknown era"}</span>
                       <span>#{song.public_id || song.id}</span>
                     </div>
-                  </Link>
+                    </Link>
+                  </article>
                 ))}
           </div>
         </div>
@@ -604,6 +709,66 @@ export default function App() {
           </p>
         </footer>
       </main>
+
+      {playlistPickerSong ? (
+        <div className="playlist-picker-backdrop" onClick={closePlaylistPicker}>
+          <div
+            className="playlist-picker"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add song to playlist"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="playlist-picker__header">
+              <div>
+                <p className="eyebrow">Quick add</p>
+                <h2>{playlistPickerSong.name}</h2>
+              </div>
+              <button type="button" className="chip" onClick={closePlaylistPicker}>
+                Close
+              </button>
+            </div>
+
+            <p className="section-subtitle">
+              Choose a playlist or create one instantly without leaving the catalog.
+            </p>
+
+            <div className="playlist-picker__actions">
+              <button
+                type="button"
+                className="chip is-active"
+                onClick={handleQuickCreatePlaylist}
+              >
+                New playlist
+              </button>
+            </div>
+
+            {playlistNotice ? (
+              <div className="status-banner playlist-picker__notice">{playlistNotice}</div>
+            ) : null}
+
+            <div className="playlist-picker__list">
+              {availablePlaylists.length > 0 ? (
+                availablePlaylists.map((playlist) => (
+                  <button
+                    key={playlist.id}
+                    type="button"
+                    className="playlist-picker__item"
+                    onClick={() => handleAddSongToPlaylist(playlist.id)}
+                  >
+                    <strong>{playlist.name}</strong>
+                    <span>{playlist.song_count || playlist.songs?.length || 0} songs</span>
+                  </button>
+                ))
+              ) : (
+                <p className="section-subtitle">
+                  No playlists yet. Create one above and this song will be added right away.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

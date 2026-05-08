@@ -70,8 +70,8 @@ export default function Playlists() {
                 padding: "12px 14px",
                 borderRadius: 12,
                 border: "1px solid var(--control-border)",
-                background: "var(--control-bg)",
-                color: "var(--heading)",
+                background: "var(--bg-soft)",
+                color: "var(--text-primary)",
               }}
             />
             <button type="submit" className="chip">
@@ -89,7 +89,7 @@ export default function Playlists() {
         <div className="meta-block" style={{ marginTop: 24 }}>
           <p className="block-label">All playlists</p>
           {playlists.length === 0 ? (
-            <p style={{ color: "var(--muted)" }}>
+            <p style={{ color: "var(--text-muted)" }}>
               No playlists yet. Create your first one above or use the shared playlist
               builder.
             </p>
@@ -109,7 +109,7 @@ export default function Playlists() {
                   <Link
                     to={`/playlist/${playlist.id}`}
                     style={{
-                      color: "var(--heading)",
+                      color: "var(--text-primary)",
                       textDecoration: "none",
                     }}
                   >
@@ -119,7 +119,7 @@ export default function Playlists() {
                     type="button"
                     onClick={() => handleDeletePlaylist(playlist.id)}
                     className="chip"
-                    style={{ background: "rgba(224, 90, 26, 0.2)" }}
+                    style={{ background: "rgba(255, 79, 163, 0.16)" }}
                   >
                     Delete
                   </button>

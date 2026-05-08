@@ -12,30 +12,12 @@ import "./App.css";
 
 function createMetaRows(song) {
   return [
-    {
-      label: "Artists",
-      value: song.credited_artists || "Juice WRLD",
-    },
-    {
-      label: "Era",
-      value: song.era?.name || "Unknown",
-    },
-    {
-      label: "Producers",
-      value: song.producers || "Unknown",
-    },
-    {
-      label: "Length",
-      value: song.length || "Unknown",
-    },
-    {
-      label: "Catalog ID",
-      value: `#${song.public_id || song.id}`,
-    },
-    {
-      label: "Category",
-      value: formatCategoryLabel(song.category),
-    },
+    { label: "Artists", value: song.credited_artists || "Juice WRLD" },
+    { label: "Era", value: song.era?.name || "Unknown" },
+    { label: "Producers", value: song.producers || "Unknown" },
+    { label: "Length", value: song.length || "Unknown" },
+    { label: "Catalog ID", value: `#${song.public_id || song.id}` },
+    { label: "Category", value: formatCategoryLabel(song.category) },
   ];
 }
 
@@ -141,6 +123,13 @@ export default function SongDetail() {
   const isCurrentSong = currentSong?.id === song?.id;
   const metaRows = useMemo(() => (song ? createMetaRows(song) : []), [song]);
   const sessionNotes = useMemo(() => (song ? createSessionNotes(song) : []), [song]);
+  const eraLink = song?.era?.name ? `/?search=${encodeURIComponent(song.era.name)}` : null;
+  const producerLink = song?.producers
+    ? `/?search=${encodeURIComponent(song.producers)}`
+    : null;
+  const categoryLink = song?.category
+    ? `/?category=${encodeURIComponent(song.category)}`
+    : null;
 
   function handlePlaySong() {
     if (!song) return;
@@ -218,9 +207,20 @@ export default function SongDetail() {
                 "A focused snapshot from the Juice WRLD archive with available session metadata."}
             </p>
             <div className="pill-wrap">
-              {song.era?.name ? <span className="meta-pill">{song.era.name}</span> : null}
+              {song.era?.name ? (
+                <Link to={eraLink} className="meta-pill meta-pill--link">
+                  {song.era.name}
+                </Link>
+              ) : null}
               {song.category ? (
-                <span className="meta-pill">{formatCategoryLabel(song.category)}</span>
+                <Link to={categoryLink} className="meta-pill meta-pill--link">
+                  {formatCategoryLabel(song.category)}
+                </Link>
+              ) : null}
+              {song.producers ? (
+                <Link to={producerLink} className="meta-pill meta-pill--link">
+                  {song.producers}
+                </Link>
               ) : null}
               {song.length ? <span className="meta-pill">{song.length}</span> : null}
             </div>
@@ -321,8 +321,11 @@ export default function SongDetail() {
                     <div>
                       <strong>{relatedSong.name}</strong>
                       <span>
-                        {relatedSong.credited_artists || "Juice WRLD"} ·{" "}
-                        {relatedSong.era?.name || formatCategoryLabel(relatedSong.category)}
+                        {[
+                          relatedSong.credited_artists || "Juice WRLD",
+                          relatedSong.era?.name ||
+                            formatCategoryLabel(relatedSong.category),
+                        ].join(" / ")}
                       </span>
                     </div>
                     <div className="mini-action-row">

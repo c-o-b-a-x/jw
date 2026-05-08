@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 
 const API_BASE_URL = "https://juicewrldapi.com";
 const RECENT_SONGS_STORAGE_KEY = "jw_recent_songs";
+const PLAYER_VOLUME_STORAGE_KEY = "jw_player_volume";
 
 function buildAudioUrl(path) {
   if (!path) return "";
@@ -34,6 +35,14 @@ export function AudioPlayerProvider({ children }) {
   const [error, setError] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(() => {
+    if (typeof window === "undefined") return 0.9;
+
+    const storedValue = Number(window.localStorage.getItem(PLAYER_VOLUME_STORAGE_KEY));
+    return Number.isFinite(storedValue) && storedValue >= 0 && storedValue <= 1
+      ? storedValue
+      : 0.9;
+  });
   const [recentSongs, setRecentSongs] = useState(() => {
     if (typeof window === "undefined") return [];
 
@@ -47,6 +56,12 @@ export function AudioPlayerProvider({ children }) {
   });
 
   const currentSong = currentIndex >= 0 ? queue[currentIndex] : null;
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = volume;
+  }, [volume]);
 
   const rememberSong = useCallback((song) => {
     if (!song) return;
@@ -213,6 +228,30 @@ export function AudioPlayerProvider({ children }) {
     setError("");
   }, []);
 
+  const seekTo = useCallback((nextTime) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.currentTime = nextTime;
+    setCurrentTime(nextTime);
+  }, []);
+
+  const setPlayerVolume = useCallback((nextVolume) => {
+    const normalizedVolume = Math.min(1, Math.max(0, nextVolume));
+    setVolume(normalizedVolume);
+
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(
+          PLAYER_VOLUME_STORAGE_KEY,
+          String(normalizedVolume),
+        );
+      } catch {
+        // Ignore storage failures.
+      }
+    }
+  }, []);
+
   useEffect(() => {
     setMediaSessionHandlers();
   }, [setMediaSessionHandlers]);
@@ -272,6 +311,7 @@ export function AudioPlayerProvider({ children }) {
       error,
       currentTime,
       duration,
+      volume,
       recentSongs,
       playSong,
       playQueue,
@@ -279,6 +319,8 @@ export function AudioPlayerProvider({ children }) {
       playPrevious,
       togglePlayPause,
       stopPlayback,
+      seekTo,
+      setPlayerVolume,
     }),
     [
       currentSong,
@@ -289,6 +331,7 @@ export function AudioPlayerProvider({ children }) {
       error,
       currentTime,
       duration,
+      volume,
       recentSongs,
       playSong,
       playQueue,
@@ -296,6 +339,8 @@ export function AudioPlayerProvider({ children }) {
       playPrevious,
       togglePlayPause,
       stopPlayback,
+      seekTo,
+      setPlayerVolume,
     ],
   );
 
@@ -323,11 +368,17 @@ function PersistentPlayer() {
     error,
     currentTime,
     duration,
+    volume,
+    queue,
+    currentIndex,
     playNext,
     playPrevious,
     stopPlayback,
     togglePlayPause,
+    seekTo,
+    setPlayerVolume,
   } = useAudioPlayer();
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
 
   if (!currentSong) return null;
 
@@ -359,6 +410,31 @@ function PersistentPlayer() {
         </div>
       </div>
 
+      <div className="persistent-player__sliders">
+        <label className="player-slider">
+          <span>Seek</span>
+          <input
+            type="range"
+            min="0"
+            max={duration || 0}
+            step="1"
+            value={Math.min(currentTime, duration || 0)}
+            onChange={(event) => seekTo(Number(event.target.value))}
+          />
+        </label>
+        <label className="player-slider player-slider--volume">
+          <span>Volume</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={volume}
+            onChange={(event) => setPlayerVolume(Number(event.target.value))}
+          />
+        </label>
+      </div>
+
       <div className="persistent-player__controls">
         <button type="button" className="chip" onClick={playPrevious}>
           Prev
@@ -369,10 +445,33 @@ function PersistentPlayer() {
         <button type="button" className="chip" onClick={playNext}>
           Next
         </button>
+        <button
+          type="button"
+          className={`chip ${isQueueOpen ? "is-active" : ""}`}
+          onClick={() => setIsQueueOpen((open) => !open)}
+        >
+          Queue
+        </button>
         <button type="button" className="chip" onClick={stopPlayback}>
           Close
         </button>
       </div>
+
+      {isQueueOpen && queue.length > 0 ? (
+        <div className="persistent-player__queue">
+          {queue.map((song, index) => (
+            <div
+              key={`${song.id}-${index}`}
+              className={`persistent-player__queue-item ${
+                index === currentIndex ? "is-current" : ""
+              }`}
+            >
+              <strong>{song.name}</strong>
+              <span>{song.credited_artists || "Juice WRLD"}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
