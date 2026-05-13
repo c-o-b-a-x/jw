@@ -1213,10 +1213,6 @@ select {
   margin-top: 18px;
 }
 
-.playlist-picker__notice {
-  margin-top: 16px;
-}
-
 .playlist-picker__list {
   display: grid;
   gap: 12px;
@@ -1243,6 +1239,87 @@ select {
   margin-top: 4px;
   color: var(--text-muted);
   font-size: 0.84rem;
+}
+
+.playlist-inline-input,
+.playlist-form-input,
+.playlist-form-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--control-border);
+  background: var(--bg-soft);
+  color: var(--text-primary);
+}
+
+.playlist-form-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.playlist-inline-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.playlist-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1600;
+  display: grid;
+  gap: 10px;
+  width: min(360px, calc(100vw - 32px));
+}
+
+.toast-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 15, 19, 0.94);
+  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(14px);
+}
+
+.toast-card--success {
+  border-color: rgba(255, 79, 163, 0.28);
+}
+
+.toast-card--warning {
+  border-color: rgba(255, 177, 122, 0.24);
+}
+
+.toast-card__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.toast-card__copy strong {
+  color: var(--text-primary);
+  font-size: 0.94rem;
+}
+
+.toast-card__copy span {
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+
+.toast-card__close {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.92rem;
+  padding: 0;
 }
 
 .footer-content {
@@ -1458,5 +1535,12 @@ select {
   .playlist-picker__header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .toast-stack {
+    right: 10px;
+    left: 10px;
+    width: auto;
+    bottom: 10px;
   }
 }

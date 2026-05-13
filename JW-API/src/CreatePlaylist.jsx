@@ -2,14 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "./App.css";
 import { buildShareToken, createPlaylist } from "./playlistStore";
-
-const API_BASE_URL = "https://juicewrldapi.com";
-
-async function fetchJson(path, signal) {
-  const response = await fetch(`${API_BASE_URL}${path}`, { signal });
-  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-  return response.json();
-}
+import { fetchSongs } from "./api";
+import { useToast } from "./toast";
 
 export default function CreatePlaylist() {
   const [playlistName, setPlaylistName] = useState("");
@@ -19,25 +13,24 @@ export default function CreatePlaylist() {
   const [isSaving, setIsSaving] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [error, setError] = useState("");
+  const { pushToast } = useToast();
 
   useEffect(() => {
     const controller = new AbortController();
 
-    async function fetchSongs() {
+    async function loadSongs() {
       if (!searchTerm.trim()) {
         setAvailableSongs([]);
         return;
       }
 
       try {
-        const params = new URLSearchParams({
-          search: searchTerm.trim(),
-          page_size: "20",
-        });
-
-        const data = await fetchJson(
-          `/juicewrld/songs/?${params.toString()}`,
-          controller.signal,
+        const data = await fetchSongs(
+          {
+            search: searchTerm.trim(),
+            pageSize: 20,
+          },
+          { signal: controller.signal },
         );
         setAvailableSongs(data.results || []);
       } catch (fetchError) {
@@ -47,7 +40,7 @@ export default function CreatePlaylist() {
       }
     }
 
-    const timeoutId = window.setTimeout(fetchSongs, 300);
+    const timeoutId = window.setTimeout(loadSongs, 300);
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -75,8 +68,20 @@ export default function CreatePlaylist() {
 
     navigator.clipboard
       .writeText(shareLink)
-      .then(() => window.alert("Copied!"))
-      .catch(() => window.alert("Copy failed. You can still copy the link manually."));
+      .then(() =>
+        pushToast({
+          title: "Copied to clipboard",
+          message: "Your shared playlist link is ready to send.",
+          tone: "success",
+        }),
+      )
+      .catch(() =>
+        pushToast({
+          title: "Copy failed",
+          message: "You can still copy the link manually from the field.",
+          tone: "warning",
+        }),
+      );
   }
 
   function handleCreate() {
@@ -95,7 +100,14 @@ export default function CreatePlaylist() {
       });
 
       const shareToken = buildShareToken(playlist);
-      setShareLink(`${window.location.origin}/shared/${shareToken}`);
+      setShareLink(
+        `${window.location.origin}/shared?playlist=${encodeURIComponent(shareToken)}`,
+      );
+      pushToast({
+        title: "Playlist created",
+        message: `${playlist.name} is ready to share.`,
+        tone: "success",
+      });
     } catch {
       setError("Failed to save the playlist. Please try again.");
     } finally {
@@ -133,10 +145,10 @@ export default function CreatePlaylist() {
             style={{
               width: "100%",
               padding: "12px 14px",
-              background: "var(--control-bg)",
+              background: "var(--bg-soft)",
               border: "1px solid var(--control-border)",
               borderRadius: 12,
-              color: "var(--heading)",
+              color: "var(--text-primary)",
             }}
           />
         </div>
@@ -144,7 +156,9 @@ export default function CreatePlaylist() {
         <div className="meta-block">
           <p className="block-label">Selected songs ({selectedSongs.length})</p>
           {selectedSongs.length === 0 ? (
-            <p style={{ color: "var(--muted)" }}>No songs added yet. Search below.</p>
+            <p style={{ color: "var(--text-muted)" }}>
+              No songs added yet. Search below.
+            </p>
           ) : (
             <ul className="detail-list">
               {selectedSongs.map((song) => (
@@ -180,10 +194,10 @@ export default function CreatePlaylist() {
               width: "100%",
               padding: "12px 14px",
               marginBottom: 12,
-              background: "var(--control-bg)",
+              background: "var(--bg-soft)",
               border: "1px solid var(--control-border)",
               borderRadius: 12,
-              color: "var(--heading)",
+              color: "var(--text-primary)",
             }}
           />
           <div style={{ maxHeight: 240, overflowY: "auto" }}>
@@ -208,7 +222,7 @@ export default function CreatePlaylist() {
               </div>
             ))}
             {searchTerm && availableSongs.length === 0 && (
-              <p style={{ color: "var(--muted)" }}>No songs found.</p>
+              <p style={{ color: "var(--text-muted)" }}>No songs found.</p>
             )}
           </div>
         </div>
@@ -239,18 +253,18 @@ export default function CreatePlaylist() {
                 readOnly
                 style={{
                   flex: "1 1 280px",
-                  background: "var(--control-bg)",
+                  background: "var(--bg-soft)",
                   border: "1px solid var(--control-border)",
                   padding: "12px 14px",
                   borderRadius: 12,
-                  color: "var(--heading)",
+                  color: "var(--text-primary)",
                 }}
               />
               <button type="button" onClick={copyShareLink} className="chip">
                 Copy
               </button>
             </div>
-            <p style={{ marginTop: 8, color: "var(--muted)" }}>
+            <p style={{ marginTop: 8, color: "var(--text-muted)" }}>
               Anyone with this link can open the playlist and load the songs from the
               Juice WRLD API.
             </p>

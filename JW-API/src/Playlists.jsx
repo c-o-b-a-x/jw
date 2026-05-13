@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import "./App.css";
-import { createPlaylist, deletePlaylist, listPlaylists } from "./playlistStore";
+import {
+  createPlaylist,
+  deletePlaylist,
+  listPlaylists,
+  updatePlaylist,
+} from "./playlistStore";
+import { useToast } from "./toast";
 
 export default function Playlists() {
   const [playlists, setPlaylists] = useState(() => listPlaylists());
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [error, setError] = useState("");
+  const [editingPlaylistId, setEditingPlaylistId] = useState("");
+  const [editingName, setEditingName] = useState("");
+  const { pushToast } = useToast();
 
   function handleCreatePlaylist(event) {
     event.preventDefault();
@@ -23,15 +32,58 @@ export default function Playlists() {
     setPlaylists((currentPlaylists) => [playlist, ...currentPlaylists]);
     setNewPlaylistName("");
     setError("");
+    pushToast({
+      title: "Playlist created",
+      message: `${playlist.name} is ready for songs.`,
+      tone: "success",
+    });
   }
 
   function handleDeletePlaylist(id) {
     if (!window.confirm("Delete this playlist?")) return;
 
+    const deletedPlaylist = playlists.find((playlist) => playlist.id === id);
     deletePlaylist(id);
     setPlaylists((currentPlaylists) =>
       currentPlaylists.filter((playlist) => playlist.id !== id),
     );
+    pushToast({
+      title: "Playlist deleted",
+      message: deletedPlaylist?.name || "The playlist was removed.",
+      tone: "info",
+    });
+  }
+
+  function startEditing(playlist) {
+    setEditingPlaylistId(playlist.id);
+    setEditingName(playlist.name);
+  }
+
+  function savePlaylistName(playlist) {
+    const nextName = editingName.trim();
+    if (!nextName) {
+      setError("Playlist names cannot be empty.");
+      return;
+    }
+
+    const updatedPlaylist = updatePlaylist({
+      ...playlist,
+      name: nextName,
+    });
+
+    setPlaylists((currentPlaylists) =>
+      currentPlaylists.map((currentPlaylist) =>
+        currentPlaylist.id === playlist.id ? updatedPlaylist : currentPlaylist,
+      ),
+    );
+    setEditingPlaylistId("");
+    setEditingName("");
+    setError("");
+    pushToast({
+      title: "Playlist renamed",
+      message: `${updatedPlaylist.name} has been updated.`,
+      tone: "success",
+    });
   }
 
   return (
@@ -106,23 +158,64 @@ export default function Playlists() {
                     flexWrap: "wrap",
                   }}
                 >
-                  <Link
-                    to={`/playlist/${playlist.id}`}
-                    style={{
-                      color: "var(--text-primary)",
-                      textDecoration: "none",
-                    }}
-                  >
-                    <strong>{playlist.name}</strong> ({playlist.song_count || 0} songs)
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => handleDeletePlaylist(playlist.id)}
-                    className="chip"
-                    style={{ background: "rgba(255, 79, 163, 0.16)" }}
-                  >
-                    Delete
-                  </button>
+                  {editingPlaylistId === playlist.id ? (
+                    <>
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={(event) => setEditingName(event.target.value)}
+                        className="playlist-inline-input"
+                      />
+                      <div className="playlist-inline-actions">
+                        <button
+                          type="button"
+                          onClick={() => savePlaylistName(playlist)}
+                          className="chip is-active"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingPlaylistId("");
+                            setEditingName("");
+                          }}
+                          className="chip"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to={`/playlist/${playlist.id}`}
+                        style={{
+                          color: "var(--text-primary)",
+                          textDecoration: "none",
+                        }}
+                      >
+                        <strong>{playlist.name}</strong> ({playlist.song_count || 0} songs)
+                      </Link>
+                      <div className="playlist-inline-actions">
+                        <button
+                          type="button"
+                          onClick={() => startEditing(playlist)}
+                          className="chip"
+                        >
+                          Rename
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePlaylist(playlist.id)}
+                          className="chip"
+                          style={{ background: "rgba(255, 79, 163, 0.16)" }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

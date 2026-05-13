@@ -37,6 +37,7 @@ export default function SongDetail() {
   const { id } = useParams();
   const location = useLocation();
   const seedSong = location.state?.song || null;
+  const catalogReturn = location.state?.catalogReturn ?? null;
   const { currentSong, isPlaying, playSong, togglePlayPause } = useAudioPlayer();
   const [song, setSong] = useState(seedSong);
   const [relatedSongs, setRelatedSongs] = useState([]);
@@ -130,6 +131,28 @@ export default function SongDetail() {
   const categoryLink = song?.category
     ? `/?category=${encodeURIComponent(song.category)}`
     : null;
+  const backToCatalog = useMemo(() => {
+    if (!catalogReturn) {
+      return "/";
+    }
+
+    const nextParams = new URLSearchParams();
+
+    if (catalogReturn.search) {
+      nextParams.set("search", catalogReturn.search);
+    }
+
+    if (catalogReturn.category) {
+      nextParams.set("category", catalogReturn.category);
+    }
+
+    if (catalogReturn.page && catalogReturn.page > 1) {
+      nextParams.set("page", String(catalogReturn.page));
+    }
+
+    const queryString = nextParams.toString();
+    return queryString ? `/?${queryString}` : "/";
+  }, [catalogReturn]);
 
   function handlePlaySong() {
     if (!song) return;
@@ -146,7 +169,8 @@ export default function SongDetail() {
     return (
       <div className="app-shell">
         <Link
-          to="/"
+          to={backToCatalog}
+          state={catalogReturn ? { catalogReturn } : undefined}
           className="chip"
           style={{ marginBottom: 24, display: "inline-block" }}
         >
@@ -167,7 +191,8 @@ export default function SongDetail() {
           {error || "Song not found."}
         </div>
         <Link
-          to="/"
+          to={backToCatalog}
+          state={catalogReturn ? { catalogReturn } : undefined}
           className="chip"
           style={{ display: "inline-block", marginTop: 20 }}
         >
@@ -180,7 +205,8 @@ export default function SongDetail() {
   return (
     <div className="app-shell">
       <Link
-        to="/"
+        to={backToCatalog}
+        state={catalogReturn ? { catalogReturn } : undefined}
         className="chip"
         style={{ marginBottom: 24, display: "inline-block" }}
       >
@@ -338,7 +364,7 @@ export default function SongDetail() {
                       </button>
                       <Link
                         to={`/song/${relatedSong.id}`}
-                        state={{ song: relatedSong }}
+                        state={{ song: relatedSong, catalogReturn }}
                         className="chip"
                       >
                         Open

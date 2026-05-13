@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { useAudioPlayer } from "./audio-player";
 import {
   SONGS_PER_PAGE,
@@ -16,6 +21,7 @@ import {
 } from "./playlistStore";
 import "./App.css";
 import logo from "./assets/logo999.png";
+import { useToast } from "./toast";
 
 export default function App() {
   const [songs, setSongs] = useState([]);
@@ -35,14 +41,21 @@ export default function App() {
   const heroRef = useRef(null);
   const songsRef = useRef(null);
   const footerRef = useRef(null);
+  const hasRestoredCardRef = useRef(false);
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { currentSong, isPlaying, currentTime, duration, recentSongs, playSong } =
-    useAudioPlayer();
+  const {
+    currentSong,
+    isPlaying,
+    currentTime,
+    duration,
+    recentSongs,
+    playSong,
+  } = useAudioPlayer();
   const [playlistPickerSong, setPlaylistPickerSong] = useState(null);
   const [availablePlaylists, setAvailablePlaylists] = useState([]);
-  const [playlistNotice, setPlaylistNotice] = useState("");
+  const { pushToast } = useToast();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -98,7 +111,6 @@ export default function App() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      setPage(1);
       setSearchTerm(searchInput.trim());
     }, 300);
 
@@ -108,16 +120,22 @@ export default function App() {
   useEffect(() => {
     const nextSearch = searchParams.get("search") ?? "";
     const nextCategory = searchParams.get("category") ?? "";
+    const rawPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
+    const nextPage = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
 
     const frameId = window.requestAnimationFrame(() => {
       setSearchInput(nextSearch);
       setSearchTerm(nextSearch);
       setActiveCategory(nextCategory);
-      setPage(1);
+      setPage(nextPage);
     });
 
     return () => window.cancelAnimationFrame(frameId);
   }, [searchParams]);
+
+  useEffect(() => {
+    hasRestoredCardRef.current = false;
+  }, [location.key]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -201,6 +219,32 @@ export default function App() {
     return () => window.clearTimeout(timeoutId);
   }, [songs]);
 
+  useEffect(() => {
+    if (
+      location.pathname !== "/" ||
+      isLoading ||
+      !songs.length ||
+      hasRestoredCardRef.current
+    ) {
+      return undefined;
+    }
+
+    const scrollSongId = location.state?.catalogReturn?.scrollSongId;
+    if (!scrollSongId) {
+      return undefined;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const targetCard = document.getElementById(`song-card-${scrollSongId}`);
+      if (!targetCard) return;
+
+      targetCard.scrollIntoView({ behavior: "auto", block: "center" });
+      hasRestoredCardRef.current = true;
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isLoading, location.pathname, location.state, songs]);
+
   const totalSongs = stats?.total_songs ?? 2452;
   const categoryStats = stats?.category_stats ?? {};
   const topCategories = Object.entries(categoryStats)
@@ -211,36 +255,70 @@ export default function App() {
   const currentProgress =
     duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
 
+  function updateCatalogParams({
+    search = searchTerm,
+    category = activeCategory,
+    nextPage = page,
+  } = {}) {
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams);
+
+      if (search) {
+        nextParams.set("search", search);
+      } else {
+        nextParams.delete("search");
+      }
+
+      if (category) {
+        nextParams.set("category", category);
+      } else {
+        nextParams.delete("category");
+      }
+
+      if (nextPage > 1) {
+        nextParams.set("page", String(nextPage));
+      } else {
+        nextParams.delete("page");
+      }
+
+      return nextParams;
+    });
+  }
+
+  function createCatalogReturn(songId) {
+    return {
+      search: searchTerm,
+      category: activeCategory,
+      page,
+      scrollSongId: songId,
+    };
+  }
+
   function handleCategoryChange(event) {
     const nextCategory = event.target.value;
     setActiveCategory(nextCategory);
     setPage(1);
-    setSearchParams((currentParams) => {
-      const nextParams = new URLSearchParams(currentParams);
-      if (nextCategory) {
-        nextParams.set("category", nextCategory);
-      } else {
-        nextParams.delete("category");
-      }
-      return nextParams;
-    });
+    updateCatalogParams({ category: nextCategory, nextPage: 1 });
   }
 
   function openRandomSong() {
     if (!songs.length) return;
     const randomSong = songs[Math.floor(Math.random() * songs.length)];
-    navigate(`/song/${randomSong.id}`, { state: { song: randomSong } });
+    navigate(`/song/${randomSong.id}`, {
+      state: {
+        song: randomSong,
+        catalogReturn: createCatalogReturn(randomSong.id),
+      },
+    });
   }
 
   function openPlaylistPicker(song) {
     setAvailablePlaylists(listPlaylists());
-    setPlaylistNotice("");
     setPlaylistPickerSong(song);
   }
 
   function closePlaylistPicker() {
     setPlaylistPickerSong(null);
-    setPlaylistNotice("");
   }
 
   function handleQuickCreatePlaylist() {
@@ -252,7 +330,11 @@ export default function App() {
     });
 
     setAvailablePlaylists(listPlaylists());
-    setPlaylistNotice(`Added to new playlist "${playlist.name}".`);
+    pushToast({
+      title: "Playlist created",
+      message: `${playlistPickerSong.name} was added to ${playlist.name}.`,
+      tone: "success",
+    });
   }
 
   function handleAddSongToPlaylist(playlistId) {
@@ -260,12 +342,20 @@ export default function App() {
 
     const updatedPlaylist = addSongToPlaylist(playlistId, playlistPickerSong);
     if (!updatedPlaylist) {
-      setPlaylistNotice("That playlist could not be updated.");
+      pushToast({
+        title: "Playlist update failed",
+        message: "That playlist could not be updated.",
+        tone: "warning",
+      });
       return;
     }
 
     setAvailablePlaylists(listPlaylists());
-    setPlaylistNotice(`Saved in "${updatedPlaylist.name}".`);
+    pushToast({
+      title: "Song saved",
+      message: `${playlistPickerSong.name} is now in ${updatedPlaylist.name}.`,
+      tone: "success",
+    });
   }
 
   return (
@@ -371,10 +461,7 @@ export default function App() {
         <section className="hero-panel" ref={heroRef}>
           <div className="hero-copy">
             <p className="eyebrow">Juice WRLD Discography Explorer</p>
-            <h1>
-              Search the archive, jump between eras, and play songs straight
-              from the API.
-            </h1>
+
             <p className="hero-text">
               This React site is powered by the Juice WRLD API song catalog,
               with live search, category filters, and individual song pages.
@@ -461,7 +548,10 @@ export default function App() {
                   <Link
                     className="chip"
                     to={`/song/${currentSong.id}`}
-                    state={{ song: currentSong }}
+                    state={{
+                      song: currentSong,
+                      catalogReturn: createCatalogReturn(currentSong.id),
+                    }}
                   >
                     Open details
                   </Link>
@@ -475,7 +565,9 @@ export default function App() {
                   <p className="eyebrow">Recently played</p>
                   <h2>Pick up where you left off</h2>
                 </div>
-                <span className="mini-badge">{formatCount(recentSongs.length)}</span>
+                <span className="mini-badge">
+                  {formatCount(recentSongs.length)}
+                </span>
               </div>
               <div className="mini-song-list">
                 {recentSongs.length > 0 ? (
@@ -492,7 +584,8 @@ export default function App() {
                   ))
                 ) : (
                   <p className="section-subtitle">
-                    Songs you play on the site will show up here for quick access.
+                    Songs you play on the site will show up here for quick
+                    access.
                   </p>
                 )}
               </div>
@@ -509,14 +602,10 @@ export default function App() {
               onChange={(event) => {
                 const nextValue = event.target.value;
                 setSearchInput(nextValue);
-                setSearchParams((currentParams) => {
-                  const nextParams = new URLSearchParams(currentParams);
-                  if (nextValue.trim()) {
-                    nextParams.set("search", nextValue.trim());
-                  } else {
-                    nextParams.delete("search");
-                  }
-                  return nextParams;
+                setPage(1);
+                updateCatalogParams({
+                  search: nextValue.trim(),
+                  nextPage: 1,
                 });
               }}
               placeholder="Search by title, artist, or phrase"
@@ -567,6 +656,7 @@ export default function App() {
                 onClick={() => {
                   setActiveCategory(category);
                   setPage(1);
+                  updateCatalogParams({ category, nextPage: 1 });
                 }}
               >
                 {formatCategoryLabel(category)} - {formatCount(count)}
@@ -594,16 +684,22 @@ export default function App() {
             <div className="pager">
               <button
                 type="button"
-                onClick={() =>
-                  setPage((currentPage) => Math.max(1, currentPage - 1))
-                }
+                onClick={() => {
+                  const nextPage = Math.max(1, page - 1);
+                  setPage(nextPage);
+                  updateCatalogParams({ nextPage });
+                }}
                 disabled={page === 1 || isLoading}
               >
                 Prev
               </button>
               <button
                 type="button"
-                onClick={() => setPage((currentPage) => currentPage + 1)}
+                onClick={() => {
+                  const nextPage = page + 1;
+                  setPage(nextPage);
+                  updateCatalogParams({ nextPage });
+                }}
                 disabled={isLoading || songs.length < SONGS_PER_PAGE}
               >
                 Next
@@ -630,7 +726,10 @@ export default function App() {
                     </button>
                     <Link
                       to={`/song/${song.id}`}
-                      state={{ song }}
+                      state={{
+                        song,
+                        catalogReturn: createCatalogReturn(song.id),
+                      }}
                       className="chip"
                     >
                       Details
@@ -651,7 +750,12 @@ export default function App() {
                   />
                 ))
               : songs.map((song) => (
-                  <article key={song.id} className="song-card song-card--interactive">
+                  <article
+                    key={song.id}
+                    id={`song-card-${song.id}`}
+                    data-song-card-id={song.id}
+                    className="song-card song-card--interactive"
+                  >
                     <button
                       type="button"
                       className="song-card__playlist-button"
@@ -662,23 +766,26 @@ export default function App() {
                     </button>
                     <Link
                       to={`/song/${song.id}`}
-                      state={{ song }}
+                      state={{
+                        song,
+                        catalogReturn: createCatalogReturn(song.id),
+                      }}
                       className="song-card__link"
                     >
-                    <div className="song-card-top">
-                      <span className="song-tag">
-                        {formatCategoryLabel(song.category)}
-                      </span>
-                      <span className="song-length">
-                        {song.length || "Unknown"}
-                      </span>
-                    </div>
-                    <h3>{song.name}</h3>
-                    <p>{song.credited_artists || "Juice WRLD"}</p>
-                    <div className="song-card-footer">
-                      <span>{song.era?.name || "Unknown era"}</span>
-                      <span>#{song.public_id || song.id}</span>
-                    </div>
+                      <div className="song-card-top">
+                        <span className="song-tag">
+                          {formatCategoryLabel(song.category)}
+                        </span>
+                        <span className="song-length">
+                          {song.length || "Unknown"}
+                        </span>
+                      </div>
+                      <h3>{song.name}</h3>
+                      <p>{song.credited_artists || "Juice WRLD"}</p>
+                      <div className="song-card-footer">
+                        <span>{song.era?.name || "Unknown era"}</span>
+                        <span>#{song.public_id || song.id}</span>
+                      </div>
                     </Link>
                   </article>
                 ))}
@@ -724,13 +831,18 @@ export default function App() {
                 <p className="eyebrow">Quick add</p>
                 <h2>{playlistPickerSong.name}</h2>
               </div>
-              <button type="button" className="chip" onClick={closePlaylistPicker}>
+              <button
+                type="button"
+                className="chip"
+                onClick={closePlaylistPicker}
+              >
                 Close
               </button>
             </div>
 
             <p className="section-subtitle">
-              Choose a playlist or create one instantly without leaving the catalog.
+              Choose a playlist or create one instantly without leaving the
+              catalog.
             </p>
 
             <div className="playlist-picker__actions">
@@ -743,10 +855,6 @@ export default function App() {
               </button>
             </div>
 
-            {playlistNotice ? (
-              <div className="status-banner playlist-picker__notice">{playlistNotice}</div>
-            ) : null}
-
             <div className="playlist-picker__list">
               {availablePlaylists.length > 0 ? (
                 availablePlaylists.map((playlist) => (
@@ -757,12 +865,15 @@ export default function App() {
                     onClick={() => handleAddSongToPlaylist(playlist.id)}
                   >
                     <strong>{playlist.name}</strong>
-                    <span>{playlist.song_count || playlist.songs?.length || 0} songs</span>
+                    <span>
+                      {playlist.song_count || playlist.songs?.length || 0} songs
+                    </span>
                   </button>
                 ))
               ) : (
                 <p className="section-subtitle">
-                  No playlists yet. Create one above and this song will be added right away.
+                  No playlists yet. Create one above and this song will be added
+                  right away.
                 </p>
               )}
             </div>

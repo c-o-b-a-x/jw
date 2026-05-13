@@ -6,15 +6,10 @@ import {
   buildShareToken,
   getPlaylistById,
   removeSongFromPlaylist,
+  updatePlaylist,
 } from "./playlistStore";
-
-const API_BASE_URL = "https://juicewrldapi.com";
-
-async function fetchJson(path, signal) {
-  const response = await fetch(`${API_BASE_URL}${path}`, { signal });
-  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-  return response.json();
-}
+import { fetchSongs } from "./api";
+import { useToast } from "./toast";
 
 export default function PlaylistDetail() {
   const { id } = useParams();
@@ -25,25 +20,28 @@ export default function PlaylistDetail() {
   const [shareLink, setShareLink] = useState("");
   const [availableSongs, setAvailableSongs] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [draftName, setDraftName] = useState(() => getPlaylistById(id)?.name || "");
+  const [draftDescription, setDraftDescription] = useState(
+    () => getPlaylistById(id)?.description || "",
+  );
+  const { pushToast } = useToast();
 
   useEffect(() => {
     const controller = new AbortController();
 
-    async function fetchSongs() {
+    async function loadSongs() {
       if (!searchTerm.trim()) {
         setAvailableSongs([]);
         return;
       }
 
       try {
-        const params = new URLSearchParams({
-          search: searchTerm.trim(),
-          page_size: "20",
-        });
-
-        const data = await fetchJson(
-          `/juicewrld/songs/?${params.toString()}`,
-          controller.signal,
+        const data = await fetchSongs(
+          {
+            search: searchTerm.trim(),
+            pageSize: 20,
+          },
+          { signal: controller.signal },
         );
         setAvailableSongs(data.results || []);
       } catch (fetchError) {
@@ -53,7 +51,7 @@ export default function PlaylistDetail() {
       }
     }
 
-    const timeoutId = window.setTimeout(fetchSongs, 300);
+    const timeoutId = window.setTimeout(loadSongs, 300);
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -71,6 +69,11 @@ export default function PlaylistDetail() {
 
     setPlaylist(updatedPlaylist);
     setError("");
+    pushToast({
+      title: "Song added",
+      message: `${song.name} was added to ${updatedPlaylist.name}.`,
+      tone: "success",
+    });
   }
 
   function handleRemoveSong(songId) {
@@ -83,6 +86,11 @@ export default function PlaylistDetail() {
 
     setPlaylist(updatedPlaylist);
     setError("");
+    pushToast({
+      title: "Song removed",
+      message: "The track was removed from the playlist.",
+      tone: "info",
+    });
   }
 
   function handleShare() {
@@ -92,6 +100,11 @@ export default function PlaylistDetail() {
     setShareLink(
       `${window.location.origin}/shared?playlist=${encodeURIComponent(shareToken)}`,
     );
+    pushToast({
+      title: "Share link ready",
+      message: "Copy the new playlist URL and send it anywhere.",
+      tone: "success",
+    });
   }
 
   function copyToClipboard() {
@@ -99,8 +112,38 @@ export default function PlaylistDetail() {
 
     navigator.clipboard
       .writeText(shareLink)
-      .then(() => window.alert("Share link copied to clipboard!"))
-      .catch(() => window.alert("Copy failed. You can still copy the link manually."));
+      .then(() =>
+        pushToast({
+          title: "Copied to clipboard",
+          message: "Your playlist link is ready to paste.",
+          tone: "success",
+        }),
+      )
+      .catch(() =>
+        pushToast({
+          title: "Copy failed",
+          message: "You can still copy the link manually from the field.",
+          tone: "warning",
+        }),
+      );
+  }
+
+  function handleSaveDetails(event) {
+    event.preventDefault();
+    if (!playlist) return;
+
+    const updatedPlaylist = updatePlaylist({
+      ...playlist,
+      name: draftName.trim() || "Untitled Playlist",
+      description: draftDescription.trim(),
+    });
+
+    setPlaylist(updatedPlaylist);
+    pushToast({
+      title: "Playlist saved",
+      message: `${updatedPlaylist.name} has been updated.`,
+      tone: "success",
+    });
   }
 
   if (error && !playlist) {
@@ -143,6 +186,28 @@ export default function PlaylistDetail() {
             <strong>{new Date(playlist.created_at).toLocaleDateString()}</strong>
           </div>
         </div>
+
+        <form className="meta-block playlist-editor" onSubmit={handleSaveDetails}>
+          <div className="block-header">
+            <p className="block-label">Edit details</p>
+            <button type="submit" className="chip is-active">
+              Save changes
+            </button>
+          </div>
+          <input
+            type="text"
+            value={draftName}
+            onChange={(event) => setDraftName(event.target.value)}
+            placeholder="Playlist name"
+            className="playlist-form-input"
+          />
+          <textarea
+            value={draftDescription}
+            onChange={(event) => setDraftDescription(event.target.value)}
+            placeholder="Description"
+            className="playlist-form-textarea"
+          />
+        </form>
 
         <div className="meta-block">
           <button type="button" onClick={handleShare} className="chip">
