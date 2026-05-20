@@ -64,11 +64,12 @@ export default function SharedPlaylist() {
   if (isLoading) {
     return (
       <div className="app-shell">
-        <div
-          className="detail-panel"
-          style={{ maxWidth: 800, margin: "0 auto" }}
-        >
-          <div className="skeleton-card" style={{ height: 200 }} />
+        <div className="detail-panel page-shell page-shell--narrow">
+          <div className="skeleton-stack">
+            <div className="skeleton-card skeleton-card--hero" />
+            <div className="skeleton-card skeleton-card--meta" />
+            <div className="skeleton-card skeleton-card--list" />
+          </div>
         </div>
       </div>
     );
@@ -80,11 +81,7 @@ export default function SharedPlaylist() {
         <div className="status-banner" role="alert">
           {error || "Playlist not found."}
         </div>
-        <Link
-          to="/"
-          className="chip"
-          style={{ marginTop: 20, display: "inline-block" }}
-        >
+        <Link to="/" className="chip panel-back-link">
           Back to home
         </Link>
       </div>
@@ -93,15 +90,11 @@ export default function SharedPlaylist() {
 
   return (
     <div className="app-shell">
-      <Link
-        to="/"
-        className="chip"
-        style={{ marginBottom: 24, display: "inline-block" }}
-      >
+      <Link to="/" className="chip panel-back-link">
         Back to home
       </Link>
 
-      <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div className="detail-panel page-shell page-shell--narrow">
         <div className="detail-copy">
           <p className="eyebrow">Shared Playlist</p>
           <h2>{playlist.name}</h2>
@@ -123,21 +116,22 @@ export default function SharedPlaylist() {
 
         <div className="meta-block">
           <p className="block-label">Songs</p>
-          <ul className="detail-list">
-            {(playlist.songs || []).map((song) => (
-              <li key={song.id}>
-                <Link
-                  to={`/song/${song.id}`}
-                  style={{
-                    color: "var(--text-primary)",
-                    textDecoration: "none",
-                  }}
-                >
-                  {song.name} - {song.credited_artists || "Juice WRLD"}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {playlist.songs?.length > 0 ? (
+            <ul className="detail-list detail-list--stacked">
+              {(playlist.songs || []).map((song) => (
+                <li key={song.id} className="detail-list__row">
+                  <Link to={`/song/${song.id}`} className="detail-list__link">
+                    {song.name} - {song.credited_artists || "Juice WRLD"}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="utility-empty">
+              <strong>No songs were included</strong>
+              <span>This shared link opened correctly, but it does not contain any playable songs yet.</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

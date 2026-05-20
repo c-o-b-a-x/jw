@@ -41,6 +41,7 @@ export default function App() {
   const heroRef = useRef(null);
   const songsRef = useRef(null);
   const footerRef = useRef(null);
+  const categoryMenuRef = useRef(null);
   const hasRestoredCardRef = useRef(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -55,6 +56,7 @@ export default function App() {
   } = useAudioPlayer();
   const [playlistPickerSong, setPlaylistPickerSong] = useState(null);
   const [availablePlaylists, setAvailablePlaylists] = useState([]);
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const { pushToast } = useToast();
 
   useEffect(() => {
@@ -108,6 +110,21 @@ export default function App() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (
+        isCategoryMenuOpen &&
+        categoryMenuRef.current &&
+        !categoryMenuRef.current.contains(event.target)
+      ) {
+        setIsCategoryMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [isCategoryMenuOpen]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -301,6 +318,20 @@ export default function App() {
     updateCatalogParams({ category: nextCategory, nextPage: 1 });
   }
 
+  function selectCategory(nextCategory) {
+    handleCategoryChange({ target: { value: nextCategory } });
+    setIsCategoryMenuOpen(false);
+  }
+
+  function resetCatalogFilters() {
+    setSearchInput("");
+    setSearchTerm("");
+    setActiveCategory("");
+    setPage(1);
+    setIsCategoryMenuOpen(false);
+    updateCatalogParams({ search: "", category: "", nextPage: 1 });
+  }
+
   function openRandomSong() {
     if (!songs.length) return;
     const randomSong = songs[Math.floor(Math.random() * songs.length)];
@@ -415,6 +446,15 @@ export default function App() {
             >
               Explore
             </a>
+          </li>
+          <li>
+            <Link
+              to="/albums"
+              className={location.pathname.startsWith("/albums") ? "active" : ""}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Albums
+            </Link>
           </li>
           <li>
             <Link
@@ -613,28 +653,60 @@ export default function App() {
           </label>
           <label className="field">
             <span>Category</span>
-            <select
-              id="select"
-              value={activeCategory}
-              onChange={handleCategoryChange}
+            <div
+              className={`custom-select ${isCategoryMenuOpen ? "is-open" : ""}`}
+              ref={categoryMenuRef}
             >
-              <option value="">All songs</option>
-              {categories.map((category, index) => {
-                const value = String(
-                  category.name ?? category.slug ?? category.value ?? index,
-                );
-                const description = category.description
-                  ? ` - ${category.description}`
-                  : "";
+              <button
+                type="button"
+                className="custom-select__trigger"
+                aria-haspopup="listbox"
+                aria-expanded={isCategoryMenuOpen}
+                onClick={() => setIsCategoryMenuOpen((open) => !open)}
+              >
+                <span>
+                  {formatCategoryLabel(activeCategory || "all songs")}
+                </span>
+                <span className="custom-select__chevron" aria-hidden="true">
+                  ▾
+                </span>
+              </button>
+              {isCategoryMenuOpen ? (
+                <div className="custom-select__menu" role="listbox">
+                  <button
+                    type="button"
+                    className={`custom-select__option ${
+                      activeCategory === "" ? "is-selected" : ""
+                    }`}
+                    onClick={() => selectCategory("")}
+                  >
+                    <strong>All songs</strong>
+                    <span>Browse the full archive without a category filter.</span>
+                  </button>
+                  {categories.map((category, index) => {
+                    const value = String(
+                      category.name ?? category.slug ?? category.value ?? index,
+                    );
 
-                return (
-                  <option key={value} value={value}>
-                    {formatCategoryLabel(value)}
-                    {description}
-                  </option>
-                );
-              })}
-            </select>
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select__option ${
+                          activeCategory === value ? "is-selected" : ""
+                        }`}
+                        onClick={() => selectCategory(value)}
+                      >
+                        <strong>{formatCategoryLabel(value)}</strong>
+                        <span>
+                          {category.description || "Filter the page to this song lane."}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
           </label>
           <div className="filter-summary">
             <span>Page {page}</span>
@@ -657,6 +729,7 @@ export default function App() {
                   setActiveCategory(category);
                   setPage(1);
                   updateCatalogParams({ category, nextPage: 1 });
+                  setIsCategoryMenuOpen(false);
                 }}
               >
                 {formatCategoryLabel(category)} - {formatCount(count)}
@@ -664,6 +737,25 @@ export default function App() {
             ))}
           </section>
         )}
+
+        <section className="mini-panel albums-callout">
+          <div className="mini-panel__header">
+            <div>
+              <p className="eyebrow">Released albums</p>
+              <h2>Listen to the official projects in order</h2>
+            </div>
+            <span className="mini-badge">6 albums</span>
+          </div>
+          <p className="section-subtitle">
+            Jump into the new albums section for front-to-back listening queues built
+            from every official release.
+          </p>
+          <div className="mini-action-row">
+            <Link to="/albums" className="chip is-active">
+              Open albums
+            </Link>
+          </div>
+        </section>
 
         {errorMessage && (
           <section className="status-banner" role="status">
@@ -790,6 +882,36 @@ export default function App() {
                   </article>
                 ))}
           </div>
+
+          {!isLoading && songs.length === 0 ? (
+            <div className="utility-empty utility-empty--panel">
+              <strong>No songs matched this page</strong>
+              <span>
+                Try a broader keyword, switch categories, or clear everything and
+                jump back into the full archive.
+              </span>
+              <div className="utility-empty__actions">
+                <button
+                  type="button"
+                  className="chip is-active"
+                  onClick={resetCatalogFilters}
+                >
+                  Clear filters
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={() => {
+                    setPage(1);
+                    updateCatalogParams({ nextPage: 1 });
+                  }}
+                  disabled={page === 1}
+                >
+                  Go to page 1
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <footer className="site-footer" ref={footerRef}>

@@ -50,17 +50,33 @@ export default function CreatePlaylist() {
 
   function addSong(song) {
     if (selectedSongs.some((selectedSong) => selectedSong.id === song.id)) {
+      pushToast({
+        title: "Already added",
+        message: `${song.name} is already in this playlist draft.`,
+        tone: "warning",
+      });
       return;
     }
 
     setSelectedSongs((currentSongs) => [...currentSongs, song]);
     setError("");
+    pushToast({
+      title: "Song selected",
+      message: `${song.name} is ready to be saved in your playlist.`,
+      tone: "success",
+    });
   }
 
   function removeSong(songId) {
+    const removedSong = selectedSongs.find((song) => song.id === songId);
     setSelectedSongs((currentSongs) =>
       currentSongs.filter((song) => song.id !== songId),
     );
+    pushToast({
+      title: "Song removed",
+      message: removedSong?.name || "The track was removed from this draft.",
+      tone: "info",
+    });
   }
 
   function copyShareLink() {
@@ -117,15 +133,11 @@ export default function CreatePlaylist() {
 
   return (
     <div className="app-shell">
-      <Link
-        to="/"
-        className="chip"
-        style={{ marginBottom: 24, display: "inline-block" }}
-      >
+      <Link to="/" className="chip panel-back-link">
         Back to home
       </Link>
 
-      <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div className="detail-panel page-shell page-shell--narrow">
         <div className="detail-copy">
           <p className="eyebrow">Create a Shared Playlist</p>
           <h2>Build and share your own collection</h2>
@@ -142,35 +154,21 @@ export default function CreatePlaylist() {
             value={playlistName}
             onChange={(event) => setPlaylistName(event.target.value)}
             placeholder="My Juice WRLD favorites"
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              background: "var(--bg-soft)",
-              border: "1px solid var(--control-border)",
-              borderRadius: 12,
-              color: "var(--text-primary)",
-            }}
+            className="playlist-form-input"
           />
         </div>
 
         <div className="meta-block">
           <p className="block-label">Selected songs ({selectedSongs.length})</p>
           {selectedSongs.length === 0 ? (
-            <p style={{ color: "var(--text-muted)" }}>
-              No songs added yet. Search below.
-            </p>
+            <div className="utility-empty">
+              <strong>No songs added yet</strong>
+              <span>Search the catalog below and build the playlist before you generate a share link.</span>
+            </div>
           ) : (
-            <ul className="detail-list">
+            <ul className="detail-list detail-list--stacked">
               {selectedSongs.map((song) => (
-                <li
-                  key={song.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    flexWrap: "wrap",
-                  }}
-                >
+                <li key={song.id} className="detail-list__row">
                   <span>
                     <strong>{song.name}</strong> - {song.credited_artists || "Juice WRLD"}
                   </span>
@@ -190,30 +188,12 @@ export default function CreatePlaylist() {
             placeholder="Search for songs..."
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              marginBottom: 12,
-              background: "var(--bg-soft)",
-              border: "1px solid var(--control-border)",
-              borderRadius: 12,
-              color: "var(--text-primary)",
-            }}
+            className="playlist-form-input"
           />
-          <div style={{ maxHeight: 240, overflowY: "auto" }}>
+          <div className="song-picker-results">
             {availableSongs.map((song) => (
-              <div
-                key={song.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  alignItems: "center",
-                  padding: "10px 0",
-                  borderBottom: "1px solid var(--panel-border)",
-                }}
-              >
-                <span>
+              <div key={song.id} className="song-picker-row">
+                <span className="song-picker-row__copy">
                   <strong>{song.name}</strong> - {song.credited_artists || "Juice WRLD"}
                 </span>
                 <button type="button" onClick={() => addSong(song)} className="chip">
@@ -222,13 +202,22 @@ export default function CreatePlaylist() {
               </div>
             ))}
             {searchTerm && availableSongs.length === 0 && (
-              <p style={{ color: "var(--text-muted)" }}>No songs found.</p>
+              <div className="utility-empty utility-empty--compact">
+                <strong>No songs found</strong>
+                <span>Try a broader title, artist, or keyword from the archive.</span>
+              </div>
+            )}
+            {!searchTerm && (
+              <div className="utility-empty utility-empty--compact">
+                <strong>Start with a search</strong>
+                <span>Type a track name or artist and matching songs will appear here.</span>
+              </div>
             )}
           </div>
         </div>
 
         {error && (
-          <div className="status-banner" style={{ marginTop: 16 }}>
+          <div className="status-banner status-banner--spaced">
             {error}
           </div>
         )}
@@ -236,35 +225,27 @@ export default function CreatePlaylist() {
         <button
           type="button"
           onClick={handleCreate}
-          className="chip"
+          className="chip primary-action"
           disabled={isSaving}
-          style={{ marginTop: 24, width: "100%" }}
         >
           {isSaving ? "Saving..." : "Generate shareable link"}
         </button>
 
         {shareLink && (
-          <div className="meta-block" style={{ marginTop: 24 }}>
+          <div className="meta-block">
             <p className="block-label">Your shareable link</p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div className="inline-field-row">
               <input
                 type="text"
                 value={shareLink}
                 readOnly
-                style={{
-                  flex: "1 1 280px",
-                  background: "var(--bg-soft)",
-                  border: "1px solid var(--control-border)",
-                  padding: "12px 14px",
-                  borderRadius: 12,
-                  color: "var(--text-primary)",
-                }}
+                className="playlist-form-input"
               />
               <button type="button" onClick={copyShareLink} className="chip">
                 Copy
               </button>
             </div>
-            <p style={{ marginTop: 8, color: "var(--text-muted)" }}>
+            <p className="field-hint">
               Anyone with this link can open the playlist and load the songs from the
               Juice WRLD API.
             </p>

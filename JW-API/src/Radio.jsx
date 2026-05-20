@@ -113,17 +113,16 @@ export default function Radio() {
   if (isLoading) {
     return (
       <div className="app-shell">
-        <Link
-          to="/"
-          className="chip"
-          style={{ marginBottom: 24, display: "inline-block" }}
-        >
+        <Link to="/" className="chip panel-back-link">
           Back to catalog
         </Link>
-        <div className="detail-panel detail-panel--page detail-panel--centered">
-          <div className="vinyl-ring" style={{ margin: "0 auto 32px", width: 200 }} />
-          <h2>Tuning into the station...</h2>
-          <p>Loading the playlist, just a moment.</p>
+        <div className="detail-panel detail-panel--page page-shell page-shell--narrow">
+          <div className="skeleton-stack">
+            <div className="skeleton-card skeleton-card--artwork" />
+            <div className="skeleton-card skeleton-card--meta" />
+            <div className="skeleton-card skeleton-card--player" />
+            <div className="skeleton-card skeleton-card--list" />
+          </div>
         </div>
       </div>
     );
@@ -132,15 +131,17 @@ export default function Radio() {
   if (error || !playlist.length) {
     return (
       <div className="app-shell">
-        <Link
-          to="/"
-          className="chip"
-          style={{ marginBottom: 24, display: "inline-block" }}
-        >
+        <Link to="/" className="chip panel-back-link">
           Back to catalog
         </Link>
-        <div className="status-banner" role="alert">
-          {error || "The radio station is currently offline."}
+        <div className="utility-empty utility-empty--panel" role="alert">
+          <strong>{error || "The radio station is currently offline."}</strong>
+          <span>Head back to the catalog, open a playlist, or retry the station after the next refresh.</span>
+          <div className="utility-empty__actions">
+            <Link to="/" className="chip is-active">
+              Browse catalog
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -154,11 +155,7 @@ export default function Radio() {
 
   return (
     <div className="app-shell">
-      <Link
-        to="/"
-        className="chip"
-        style={{ marginBottom: 24, display: "inline-block" }}
-      >
+      <Link to="/" className="chip panel-back-link">
         Back to catalog
       </Link>
 
@@ -222,9 +219,7 @@ export default function Radio() {
               </div>
             ))}
             {playlist.length - radioIndex - 1 < 5 && (
-              <p style={{ color: "var(--text-muted)", marginTop: 8 }}>
-                More tracks loading soon...
-              </p>
+              <p className="field-hint">More tracks loading soon...</p>
             )}
           </div>
         </div>

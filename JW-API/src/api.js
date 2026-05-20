@@ -22,7 +22,14 @@ export async function fetchJson(path, { signal, useCache = false } = {}) {
 }
 
 export function fetchSongs(
-  { page = 1, pageSize = SONGS_PER_PAGE, search = "", category = "" } = {},
+  {
+    page = 1,
+    pageSize = SONGS_PER_PAGE,
+    search = "",
+    searchAll = "",
+    category = "",
+    era = "",
+  } = {},
   options = {},
 ) {
   const params = new URLSearchParams({
@@ -31,7 +38,9 @@ export function fetchSongs(
   });
 
   if (category) params.set("category", category);
+  if (era) params.set("era", era);
   if (search) params.set("search", search);
+  if (searchAll) params.set("searchall", searchAll);
 
   return fetchJson(`/juicewrld/songs/?${params.toString()}`, options);
 }

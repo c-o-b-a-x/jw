@@ -88,15 +88,11 @@ export default function Playlists() {
 
   return (
     <div className="app-shell">
-      <Link
-        to="/"
-        className="chip"
-        style={{ marginBottom: 24, display: "inline-block" }}
-      >
+      <Link to="/" className="chip panel-back-link">
         Back to home
       </Link>
 
-      <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div className="detail-panel page-shell page-shell--narrow">
         <div className="detail-copy">
           <p className="eyebrow">Your Playlists</p>
           <h2>Personal collections</h2>
@@ -108,23 +104,13 @@ export default function Playlists() {
 
         <div className="meta-block">
           <p className="block-label">Create a new playlist</p>
-          <form
-            onSubmit={handleCreatePlaylist}
-            style={{ display: "flex", gap: 12, flexWrap: "wrap" }}
-          >
+          <form onSubmit={handleCreatePlaylist} className="inline-field-row">
             <input
               type="text"
               value={newPlaylistName}
               onChange={(event) => setNewPlaylistName(event.target.value)}
               placeholder="Playlist name"
-              style={{
-                flex: "1 1 280px",
-                padding: "12px 14px",
-                borderRadius: 12,
-                border: "1px solid var(--control-border)",
-                background: "var(--bg-soft)",
-                color: "var(--text-primary)",
-              }}
+              className="playlist-form-input"
             />
             <button type="submit" className="chip">
               Create
@@ -133,31 +119,30 @@ export default function Playlists() {
         </div>
 
         {error && (
-          <div className="status-banner" style={{ marginTop: 16 }}>
+          <div className="status-banner status-banner--spaced">
             {error}
           </div>
         )}
 
-        <div className="meta-block" style={{ marginTop: 24 }}>
+        <div className="meta-block">
           <p className="block-label">All playlists</p>
           {playlists.length === 0 ? (
-            <p style={{ color: "var(--text-muted)" }}>
-              No playlists yet. Create your first one above or use the shared playlist
-              builder.
-            </p>
+            <div className="utility-empty">
+              <strong>No playlists yet</strong>
+              <span>
+                Create your first playlist above or open the shared playlist builder
+                to start from a curated draft.
+              </span>
+              <div className="utility-empty__actions">
+                <Link to="/create-playlist" className="chip is-active">
+                  Shared builder
+                </Link>
+              </div>
+            </div>
           ) : (
-            <ul className="detail-list">
+            <ul className="detail-list detail-list--stacked">
               {playlists.map((playlist) => (
-                <li
-                  key={playlist.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 16,
-                    flexWrap: "wrap",
-                  }}
-                >
+                <li key={playlist.id} className="detail-list__row">
                   {editingPlaylistId === playlist.id ? (
                     <>
                       <input
@@ -190,10 +175,7 @@ export default function Playlists() {
                     <>
                       <Link
                         to={`/playlist/${playlist.id}`}
-                        style={{
-                          color: "var(--text-primary)",
-                          textDecoration: "none",
-                        }}
+                        className="detail-list__link"
                       >
                         <strong>{playlist.name}</strong> ({playlist.song_count || 0} songs)
                       </Link>
@@ -208,8 +190,7 @@ export default function Playlists() {
                         <button
                           type="button"
                           onClick={() => handleDeletePlaylist(playlist.id)}
-                          className="chip"
-                          style={{ background: "rgba(255, 79, 163, 0.16)" }}
+                          className="chip chip--danger"
                         >
                           Delete
                         </button>

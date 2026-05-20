@@ -128,6 +128,12 @@ export function AudioPlayerProvider({ children }) {
     });
   }, [queue.length]);
 
+  const playFromQueue = useCallback((nextIndex) => {
+    if (!queue.length) return;
+    if (nextIndex < 0 || nextIndex >= queue.length) return;
+    setCurrentIndex(nextIndex);
+  }, [queue.length]);
+
   const setMediaSessionHandlers = useCallback(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
       return;
@@ -317,6 +323,7 @@ export function AudioPlayerProvider({ children }) {
       playQueue,
       playNext,
       playPrevious,
+      playFromQueue,
       togglePlayPause,
       stopPlayback,
       seekTo,
@@ -337,6 +344,7 @@ export function AudioPlayerProvider({ children }) {
       playQueue,
       playNext,
       playPrevious,
+      playFromQueue,
       togglePlayPause,
       stopPlayback,
       seekTo,
@@ -373,6 +381,7 @@ function PersistentPlayer() {
     currentIndex,
     playNext,
     playPrevious,
+    playFromQueue,
     stopPlayback,
     togglePlayPause,
     seekTo,
@@ -460,15 +469,17 @@ function PersistentPlayer() {
       {isQueueOpen && queue.length > 0 ? (
         <div className="persistent-player__queue">
           {queue.map((song, index) => (
-            <div
+            <button
+              type="button"
               key={`${song.id}-${index}`}
               className={`persistent-player__queue-item ${
                 index === currentIndex ? "is-current" : ""
               }`}
+              onClick={() => playFromQueue(index)}
             >
               <strong>{song.name}</strong>
               <span>{song.credited_artists || "Juice WRLD"}</span>
-            </div>
+            </button>
           ))}
         </div>
       ) : null}

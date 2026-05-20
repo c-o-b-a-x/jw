@@ -5,15 +5,11 @@ import logo from "./assets/logo999.png";
 export default function About() {
   return (
     <div className="app-shell">
-      <Link
-        to="/"
-        className="chip"
-        style={{ marginBottom: 24, display: "inline-block" }}
-      >
+      <Link to="/" className="chip panel-back-link">
         Back to home
       </Link>
 
-      <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div className="detail-panel page-shell page-shell--narrow">
         <div className="detail-artwork">
           <div className="artwork-fallback">
             <span>

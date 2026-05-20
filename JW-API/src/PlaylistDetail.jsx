@@ -60,6 +60,15 @@ export default function PlaylistDetail() {
   }, [searchTerm]);
 
   function handleAddSong(song) {
+    if (playlist.songs?.some((playlistSong) => playlistSong.id === song.id)) {
+      pushToast({
+        title: "Already in playlist",
+        message: `${song.name} is already part of ${playlist.name}.`,
+        tone: "warning",
+      });
+      return;
+    }
+
     const updatedPlaylist = addSongToPlaylist(id, song);
 
     if (!updatedPlaylist) {
@@ -150,7 +159,7 @@ export default function PlaylistDetail() {
     return (
       <div className="app-shell">
         <div className="status-banner">{error}</div>
-        <Link to="/playlists" className="chip" style={{ marginTop: 20 }}>
+        <Link to="/playlists" className="chip panel-back-link">
           Back
         </Link>
       </div>
@@ -159,15 +168,11 @@ export default function PlaylistDetail() {
 
   return (
     <div className="app-shell">
-      <Link
-        to="/playlists"
-        className="chip"
-        style={{ marginBottom: 24, display: "inline-block" }}
-      >
+      <Link to="/playlists" className="chip panel-back-link">
         Back to playlists
       </Link>
 
-      <div className="detail-panel" style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div className="detail-panel page-shell page-shell--narrow">
         <div className="detail-copy">
           <p className="eyebrow">Playlist</p>
           <h2>{playlist.name}</h2>
@@ -214,27 +219,12 @@ export default function PlaylistDetail() {
             Share this playlist
           </button>
           {shareLink && (
-            <div
-              style={{
-                marginTop: 12,
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
+            <div className="inline-field-row inline-field-row--spaced">
               <input
                 type="text"
                 value={shareLink}
                 readOnly
-                style={{
-                  flex: "1 1 280px",
-                  background: "var(--bg-soft)",
-                  border: "1px solid var(--control-border)",
-                  padding: "12px 14px",
-                  borderRadius: 12,
-                  color: "var(--text-primary)",
-                }}
+                className="playlist-form-input"
               />
               <button type="button" onClick={copyToClipboard} className="chip">
                 Copy
@@ -244,7 +234,7 @@ export default function PlaylistDetail() {
         </div>
 
         {error && (
-          <div className="status-banner" style={{ marginTop: 16 }}>
+          <div className="status-banner status-banner--spaced">
             {error}
           </div>
         )}
@@ -256,35 +246,17 @@ export default function PlaylistDetail() {
             placeholder="Search songs..."
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              marginBottom: 12,
-              background: "var(--bg-soft)",
-              border: "1px solid var(--control-border)",
-              borderRadius: 12,
-              color: "var(--text-primary)",
-            }}
+            className="playlist-form-input"
           />
-          <div style={{ maxHeight: 200, overflowY: "auto" }}>
+          <div className="song-picker-results">
             {availableSongs.map((song) => {
               const isAlreadyAdded = playlist.songs?.some(
                 (playlistSong) => playlistSong.id === song.id,
               );
 
               return (
-                <div
-                  key={song.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "8px 0",
-                    borderBottom: "1px solid var(--panel-border)",
-                  }}
-                >
-                  <span>
+                <div key={song.id} className="song-picker-row">
+                  <span className="song-picker-row__copy">
                     <strong>{song.name}</strong> - {song.credited_artists || "Juice WRLD"}
                   </span>
                   <button
@@ -298,42 +270,42 @@ export default function PlaylistDetail() {
                 </div>
               );
             })}
+            {!searchTerm && (
+              <div className="utility-empty utility-empty--compact">
+                <strong>Search to add more tracks</strong>
+                <span>Type a song title, artist, or keyword and matching archive entries will appear here.</span>
+              </div>
+            )}
+            {searchTerm && availableSongs.length === 0 && (
+              <div className="utility-empty utility-empty--compact">
+                <strong>No matches right now</strong>
+                <span>Try a shorter search or clear the phrase and browse a wider set of songs.</span>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="meta-block">
           <p className="block-label">Songs in this playlist</p>
           {playlist.songs?.length === 0 ? (
-            <p style={{ color: "var(--text-muted)" }}>
-              No songs yet. Use the search above to add some.
-            </p>
+            <div className="utility-empty">
+              <strong>This playlist is empty</strong>
+              <span>Use the search above to add songs, then share the finished collection with one link.</span>
+            </div>
           ) : (
-            <ul className="detail-list">
+            <ul className="detail-list detail-list--stacked">
               {playlist.songs?.map((song) => (
-                <li
-                  key={song.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
-                  }}
-                >
+                <li key={song.id} className="detail-list__row">
                   <Link
                     to={`/song/${song.id}`}
-                    style={{
-                      color: "var(--text-primary)",
-                      textDecoration: "none",
-                    }}
+                    className="detail-list__link"
                   >
                     {song.name} - {song.credited_artists || "Juice WRLD"}
                   </Link>
                   <button
                     type="button"
                     onClick={() => handleRemoveSong(song.id)}
-                    className="chip"
-                    style={{ background: "rgba(255, 79, 163, 0.16)" }}
+                    className="chip chip--danger"
                   >
                     Remove
                   </button>
