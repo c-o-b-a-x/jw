@@ -214,76 +214,82 @@ export default function SongDetail() {
       </Link>
 
       <div className="detail-layout detail-layout--page">
-        <div className="detail-panel detail-panel--page">
-          <div className="detail-artwork">
-            {songImage ? (
-              <img src={songImage} alt={song.name} />
-            ) : (
-              <div className="artwork-fallback">
-                <span>999</span>
+        <div className="detail-panel detail-panel--page detail-panel--feature">
+          <section className="detail-stage">
+            <div className="detail-stage__media">
+              <div className="detail-artwork">
+                {songImage ? (
+                  <img src={songImage} alt={song.name} />
+                ) : (
+                  <div className="artwork-fallback">
+                    <span>999</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-
-          <div className="detail-copy">
-            <p className="eyebrow">Song details</p>
-            <h2>{song.name}</h2>
-            <p className="detail-description">
-              {song.additional_information ||
-                "A focused snapshot from the Juice WRLD archive with available session metadata."}
-            </p>
-            <div className="pill-wrap">
-              {song.era?.name ? (
-                <Link to={eraLink} className="meta-pill meta-pill--link">
-                  {song.era.name}
-                </Link>
-              ) : null}
-              {song.category ? (
-                <Link to={categoryLink} className="meta-pill meta-pill--link">
-                  {formatCategoryLabel(song.category)}
-                </Link>
-              ) : null}
-              {song.producers ? (
-                <Link to={producerLink} className="meta-pill meta-pill--link">
-                  {song.producers}
-                </Link>
-              ) : null}
-              {song.length ? <span className="meta-pill">{song.length}</span> : null}
             </div>
-          </div>
 
-          <div className="detail-meta">
-            {metaRows.map((item) => (
-              <div key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
+            <div className="detail-stage__content">
+              <div className="detail-copy detail-copy--feature">
+                <p className="eyebrow">Song details</p>
+                <h2>{song.name}</h2>
+                <p className="detail-description">
+                  {song.additional_information ||
+                    "A focused snapshot from the Juice WRLD archive with available session metadata."}
+                </p>
+                <div className="pill-wrap">
+                  {song.era?.name ? (
+                    <Link to={eraLink} className="meta-pill meta-pill--link">
+                      {song.era.name}
+                    </Link>
+                  ) : null}
+                  {song.category ? (
+                    <Link to={categoryLink} className="meta-pill meta-pill--link">
+                      {formatCategoryLabel(song.category)}
+                    </Link>
+                  ) : null}
+                  {song.producers ? (
+                    <Link to={producerLink} className="meta-pill meta-pill--link">
+                      {song.producers}
+                    </Link>
+                  ) : null}
+                  {song.length ? <span className="meta-pill">{song.length}</span> : null}
+                </div>
               </div>
-            ))}
-          </div>
 
-          <div className="player-panel">
-            <div className="mobile-player-actions">
-              <button type="button" className="chip is-active" onClick={handlePlaySong}>
-                {isCurrentSong && isPlaying ? "Pause in player" : "Play in player"}
-              </button>
-              {downloadUrl ? (
-                <a
-                  href={downloadUrl}
-                  className="chip"
-                  download={`${song.name || "juice-wrld-track"}.mp3`}
-                >
-                  Download MP3
-                </a>
-              ) : null}
-              <Link to="/radio" className="chip">
-                Open radio
-              </Link>
+              <div className="detail-meta detail-meta--feature">
+                {metaRows.map((item) => (
+                  <div key={item.label}>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
+              </div>
+
+              <div className="player-panel player-panel--feature">
+                <div className="mobile-player-actions">
+                  <button type="button" className="chip is-active" onClick={handlePlaySong}>
+                    {isCurrentSong && isPlaying ? "Pause in player" : "Play in player"}
+                  </button>
+                  {downloadUrl ? (
+                    <a
+                      href={downloadUrl}
+                      className="chip"
+                      download={`${song.name || "juice-wrld-track"}.mp3`}
+                    >
+                      Download MP3
+                    </a>
+                  ) : null}
+                  <Link to="/radio" className="chip">
+                    Open radio
+                  </Link>
+                </div>
+                <p className="player-note">
+                  The shared player stays active while you move between songs, playlists,
+                  and radio.
+                </p>
+              </div>
             </div>
-            <p className="player-note">
-              The shared player stays active while you move between songs, playlists,
-              and radio.
-            </p>
-          </div>
+          </section>
 
           {song.track_titles?.length > 0 && (
             <div className="meta-block">

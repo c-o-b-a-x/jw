@@ -172,14 +172,18 @@ export default function PlaylistDetail() {
         Back to playlists
       </Link>
 
-      <div className="detail-panel page-shell page-shell--narrow">
-        <div className="detail-copy">
-          <p className="eyebrow">Playlist</p>
-          <h2>{playlist.name}</h2>
-          <p className="detail-description">
-            {playlist.description || "No description."}
-          </p>
-        </div>
+      <div className="detail-panel page-shell page-shell--narrow detail-panel--feature">
+        <section className="detail-stage detail-stage--compact">
+          <div className="detail-stage__content detail-stage__content--full">
+            <div className="detail-copy detail-copy--feature">
+              <p className="eyebrow">Playlist</p>
+              <h2>{playlist.name}</h2>
+              <p className="detail-description">
+                {playlist.description || "No description."}
+              </p>
+            </div>
+          </div>
+        </section>
 
         <div className="detail-meta">
           <div>

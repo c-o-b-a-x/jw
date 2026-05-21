@@ -9,31 +9,37 @@ export default function About() {
         Back to home
       </Link>
 
-      <div className="detail-panel page-shell page-shell--narrow">
-        <div className="detail-artwork">
-          <div className="artwork-fallback">
-            <span>
-              <img src={logo} alt="" />
-            </span>
+      <div className="detail-panel page-shell page-shell--narrow detail-panel--feature">
+        <section className="detail-stage detail-stage--editorial">
+          <div className="detail-stage__media">
+            <div className="detail-artwork detail-artwork--brand">
+              <div className="artwork-fallback">
+                <span>
+                  <img src={logo} alt="" />
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="detail-copy">
-          <p className="eyebrow">About this project</p>
-          <h2>Juice WRLD Unreleased </h2>
-          <p className="detail-description">
-            A fan-made web app that lets you search, browse, and stream songs
-            from the Juice WRLD discography. All data is provided by the{" "}
-            <a
-              href="https://juicewrldapi.com"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Juice WRLD API
-            </a>
-            .
-          </p>
-        </div>
+          <div className="detail-stage__content">
+            <div className="detail-copy detail-copy--feature">
+              <p className="eyebrow">About this project</p>
+              <h2>Juice WRLD Unreleased</h2>
+              <p className="detail-description">
+                A fan-made web app that lets you search, browse, and stream songs
+                from the Juice WRLD discography. All data is provided by the{" "}
+                <a
+                  href="https://juicewrldapi.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Juice WRLD API
+                </a>
+                .
+              </p>
+            </div>
+          </div>
+        </section>
 
         <div className="detail-meta">
           <div>
