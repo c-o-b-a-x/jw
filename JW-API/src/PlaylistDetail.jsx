@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import "./App.css";
 import {
@@ -9,6 +9,7 @@ import {
   updatePlaylist,
 } from "./playlistStore";
 import { fetchSongs } from "./api";
+import { useAudioPlayer } from "./audio-player";
 import { useToast } from "./toast";
 
 export default function PlaylistDetail() {
@@ -24,7 +25,12 @@ export default function PlaylistDetail() {
   const [draftDescription, setDraftDescription] = useState(
     () => getPlaylistById(id)?.description || "",
   );
+  const { playQueue } = useAudioPlayer();
   const { pushToast } = useToast();
+  const playableSongs = useMemo(
+    () => (playlist?.songs || []).filter((song) => song?.path),
+    [playlist],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -155,6 +161,62 @@ export default function PlaylistDetail() {
     });
   }
 
+  function handlePlayPlaylist(startIndex = 0) {
+    if (!playableSongs.length) {
+      pushToast({
+        title: "Nothing to play",
+        message: "This playlist does not have any playable songs yet.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    playQueue(playableSongs, startIndex, true);
+    pushToast({
+      title: "Playlist playing",
+      message: `Now playing ${playlist.name}.`,
+      tone: "success",
+    });
+  }
+
+  function handleShufflePlaylist() {
+    if (!playableSongs.length) {
+      pushToast({
+        title: "Nothing to shuffle",
+        message: "Add a few playable tracks first, then try again.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    const shuffledSongs = [...playableSongs]
+      .map((song) => ({ song, sortKey: Math.random() }))
+      .sort((left, right) => left.sortKey - right.sortKey)
+      .map(({ song }) => song);
+
+    playQueue(shuffledSongs, 0, true);
+    pushToast({
+      title: "Shuffle started",
+      message: `${playlist.name} is now playing in a shuffled order.`,
+      tone: "success",
+    });
+  }
+
+  function handlePlaySong(songId) {
+    const queueIndex = playableSongs.findIndex((song) => song.id === songId);
+
+    if (queueIndex === -1) {
+      pushToast({
+        title: "Song unavailable",
+        message: "That track is not currently playable from the API.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    playQueue(playableSongs, queueIndex, true);
+  }
+
   if (error && !playlist) {
     return (
       <div className="app-shell">
@@ -181,6 +243,24 @@ export default function PlaylistDetail() {
               <p className="detail-description">
                 {playlist.description || "No description."}
               </p>
+              <div className="mobile-player-actions mobile-player-actions--secondary">
+                <button
+                  type="button"
+                  onClick={() => handlePlayPlaylist(0)}
+                  className="chip is-active"
+                  disabled={!playableSongs.length}
+                >
+                  Play playlist
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShufflePlaylist}
+                  className="chip"
+                  disabled={!playableSongs.length}
+                >
+                  Shuffle
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -298,23 +378,37 @@ export default function PlaylistDetail() {
             </div>
           ) : (
             <ul className="detail-list detail-list--stacked">
-              {playlist.songs?.map((song) => (
-                <li key={song.id} className="detail-list__row">
-                  <Link
-                    to={`/song/${song.id}`}
-                    className="detail-list__link"
-                  >
-                    {song.name} - {song.credited_artists || "Juice WRLD"}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSong(song.id)}
-                    className="chip chip--danger"
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
+              {playlist.songs?.map((song) => {
+                const isPlayable = Boolean(song?.path);
+
+                return (
+                  <li key={song.id} className="detail-list__row">
+                    <Link
+                      to={`/song/${song.id}`}
+                      className="detail-list__link"
+                    >
+                      {song.name} - {song.credited_artists || "Juice WRLD"}
+                    </Link>
+                    <div className="playlist-inline-actions">
+                      <button
+                        type="button"
+                        onClick={() => handlePlaySong(song.id)}
+                        className="chip"
+                        disabled={!isPlayable}
+                      >
+                        {isPlayable ? "Play" : "Unavailable"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSong(song.id)}
+                        className="chip chip--danger"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import "./App.css";
+import { useAudioPlayer } from "./audio-player";
 import { parseShareToken } from "./playlistStore";
+import { useToast } from "./toast";
 
 const API_BASE_URL = "https://juicewrldapi.com";
 
@@ -23,6 +25,12 @@ export default function SharedPlaylist() {
   const [playlist, setPlaylist] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const { playQueue } = useAudioPlayer();
+  const { pushToast } = useToast();
+  const playableSongs = useMemo(
+    () => (playlist?.songs || []).filter((song) => song?.path),
+    [playlist],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -88,6 +96,19 @@ export default function SharedPlaylist() {
     );
   }
 
+  function handlePlayPlaylist(startIndex = 0) {
+    if (!playableSongs.length) {
+      pushToast({
+        title: "Nothing to play",
+        message: "This shared playlist does not have any playable songs.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    playQueue(playableSongs, startIndex, true);
+  }
+
   return (
     <div className="app-shell">
       <Link to="/" className="chip panel-back-link">
@@ -101,6 +122,16 @@ export default function SharedPlaylist() {
           <p className="detail-description">
             {playlist.description || "No description."}
           </p>
+          <div className="mobile-player-actions mobile-player-actions--secondary">
+            <button
+              type="button"
+              onClick={() => handlePlayPlaylist(0)}
+              className="chip is-active"
+              disabled={!playableSongs.length}
+            >
+              Play playlist
+            </button>
+          </div>
         </div>
 
         <div className="detail-meta">
@@ -118,13 +149,28 @@ export default function SharedPlaylist() {
           <p className="block-label">Songs</p>
           {playlist.songs?.length > 0 ? (
             <ul className="detail-list detail-list--stacked">
-              {(playlist.songs || []).map((song) => (
-                <li key={song.id} className="detail-list__row">
-                  <Link to={`/song/${song.id}`} className="detail-list__link">
-                    {song.name} - {song.credited_artists || "Juice WRLD"}
-                  </Link>
-                </li>
-              ))}
+              {(playlist.songs || []).map((song) => {
+                const queueIndex = playableSongs.findIndex(
+                  (playableSong) => playableSong.id === song.id,
+                );
+                const isPlayable = queueIndex !== -1;
+
+                return (
+                  <li key={song.id} className="detail-list__row">
+                    <Link to={`/song/${song.id}`} className="detail-list__link">
+                      {song.name} - {song.credited_artists || "Juice WRLD"}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handlePlayPlaylist(queueIndex)}
+                      className="chip"
+                      disabled={!isPlayable}
+                    >
+                      {isPlayable ? "Play" : "Unavailable"}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <div className="utility-empty">
