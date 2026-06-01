@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import SiteNav from "./SiteNav";
 import "./App.css";
 import {
   addSongToPlaylist,
@@ -219,22 +220,21 @@ export default function PlaylistDetail() {
 
   if (error && !playlist) {
     return (
-      <div className="app-shell">
-        <div className="status-banner">{error}</div>
-        <Link to="/playlists" className="chip panel-back-link">
-          Back
-        </Link>
-      </div>
+      <>
+        <SiteNav />
+        <div className="app-shell">
+          <div className="status-banner">{error}</div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="app-shell">
-      <Link to="/playlists" className="chip panel-back-link">
-        Back to playlists
-      </Link>
+    <>
+      <SiteNav />
+      <div className="app-shell">
 
-      <div className="detail-panel page-shell page-shell--narrow detail-panel--feature">
+        <div className="detail-panel page-shell page-shell--narrow detail-panel--feature">
         <section className="detail-stage detail-stage--compact">
           <div className="detail-stage__content detail-stage__content--full">
             <div className="detail-copy detail-copy--feature">
@@ -412,7 +412,8 @@ export default function PlaylistDetail() {
             </ul>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import SiteNav from "./SiteNav";
 import "./App.css";
 import { buildShareToken, createPlaylist } from "./playlistStore";
 import { fetchSongs } from "./api";
@@ -132,12 +133,11 @@ export default function CreatePlaylist() {
   }
 
   return (
-    <div className="app-shell">
-      <Link to="/" className="chip panel-back-link">
-        Back to home
-      </Link>
+    <>
+      <SiteNav />
+      <div className="app-shell">
 
-      <div className="detail-panel page-shell page-shell--narrow">
+        <div className="detail-panel page-shell page-shell--narrow">
         <div className="detail-copy">
           <p className="eyebrow">Create a Shared Playlist</p>
           <h2>Build and share your own collection</h2>
@@ -251,7 +251,8 @@ export default function CreatePlaylist() {
             </p>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

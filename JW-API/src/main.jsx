@@ -6,6 +6,7 @@ import SongDetail from "./SongDetail";
 import About from "./About";
 import Radio from "./Radio";
 import Albums from "./Albums.jsx";
+import Videos from "./Videos.jsx";
 import Playlists from "./Playlists";
 import CreatePlaylist from "./CreatePlaylist";
 import PlaylistDetail from "./PlaylistDetail";
@@ -24,6 +25,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/song/:id" element={<SongDetail />} />
             <Route path="/about" element={<About />} />
             <Route path="/radio" element={<Radio />} />
+            <Route path="/videos" element={<Videos />} />
             <Route path="/albums" element={<Albums />} />
             <Route path="/albums/:slug" element={<Albums />} />
             <Route path="/playlists" element={<Playlists />} />

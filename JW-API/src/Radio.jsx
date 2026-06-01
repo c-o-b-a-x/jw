@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAudioPlayer } from "./audio-player";
+import SiteNav from "./SiteNav";
 import {
   SONGS_PER_PAGE,
   buildImageUrl,
@@ -112,38 +113,38 @@ export default function Radio() {
 
   if (isLoading) {
     return (
-      <div className="app-shell">
-        <Link to="/" className="chip panel-back-link">
-          Back to catalog
-        </Link>
-        <div className="detail-panel detail-panel--page page-shell page-shell--narrow">
-          <div className="skeleton-stack">
-            <div className="skeleton-card skeleton-card--artwork" />
-            <div className="skeleton-card skeleton-card--meta" />
-            <div className="skeleton-card skeleton-card--player" />
-            <div className="skeleton-card skeleton-card--list" />
+      <>
+        <SiteNav />
+        <div className="app-shell">
+          <div className="detail-panel detail-panel--page page-shell page-shell--narrow">
+            <div className="skeleton-stack">
+              <div className="skeleton-card skeleton-card--artwork" />
+              <div className="skeleton-card skeleton-card--meta" />
+              <div className="skeleton-card skeleton-card--player" />
+              <div className="skeleton-card skeleton-card--list" />
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (error || !playlist.length) {
     return (
-      <div className="app-shell">
-        <Link to="/" className="chip panel-back-link">
-          Back to catalog
-        </Link>
-        <div className="utility-empty utility-empty--panel" role="alert">
-          <strong>{error || "The radio station is currently offline."}</strong>
-          <span>Head back to the catalog, open a playlist, or retry the station after the next refresh.</span>
-          <div className="utility-empty__actions">
-            <Link to="/" className="chip is-active">
-              Browse catalog
-            </Link>
+      <>
+        <SiteNav />
+        <div className="app-shell">
+          <div className="utility-empty utility-empty--panel" role="alert">
+            <strong>{error || "The radio station is currently offline."}</strong>
+            <span>Head back to the catalog, open a playlist, or retry the station after the next refresh.</span>
+            <div className="utility-empty__actions">
+              <Link to="/" className="chip is-active">
+                Browse catalog
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -154,76 +155,75 @@ export default function Radio() {
   const imageUrl = buildImageUrl(activeSong?.image_url);
 
   return (
-    <div className="app-shell">
-      <Link to="/" className="chip panel-back-link">
-        Back to catalog
-      </Link>
-
-      <div className="detail-panel detail-panel--page">
-        <div className="detail-artwork">
-          {imageUrl ? (
-            <img src={imageUrl} alt={activeSong.name} />
-          ) : (
-            <div className="artwork-fallback">
-              <span>999</span>
-            </div>
-          )}
-        </div>
-
-        <div className="detail-copy radio-copy">
-          <p className="eyebrow">Now Playing</p>
-          <h2>{activeSong?.name || "Unknown Track"}</h2>
-          <p>{activeSong?.credited_artists || "Juice WRLD"}</p>
-          <p className="detail-description">
-            {activeSong?.era?.name || "Unknown era"} -{" "}
-            {formatCategoryLabel(activeSong?.category)}
-          </p>
-        </div>
-
-        <div className="player-panel">
-          <div className="mobile-player-actions">
-            <button type="button" className="chip" onClick={playPrevious}>
-              Prev
-            </button>
-            <button type="button" className="chip is-active" onClick={handleStartRadio}>
-              Start radio
-            </button>
-            <button type="button" className="chip is-active" onClick={togglePlayPause}>
-              {isPlaying ? "Pause" : "Play"}
-            </button>
-            <button type="button" className="chip" onClick={playNext}>
-              Next
-            </button>
-          </div>
-          <div className="mobile-player-actions mobile-player-actions--secondary">
-            <button
-              type="button"
-              onClick={handleShuffle}
-              className={`chip ${isShuffled ? "is-active" : ""}`}
-            >
-              Shuffle
-            </button>
-          </div>
-          <p className="player-note">
-            The shared player stays mounted so playback can continue while you browse
-            other pages or background your phone browser.
-          </p>
-        </div>
-
-        <div className="meta-block">
-          <p className="block-label">Coming up next</p>
-          <div className="radio-queue">
-            {playlist.slice(radioIndex + 1, radioIndex + 6).map((song) => (
-              <div key={song.id} className="radio-queue__item">
-                <strong>{song.name}</strong> - {song.credited_artists || "Juice WRLD"}
+    <>
+      <SiteNav />
+      <div className="app-shell">
+        <div className="detail-panel detail-panel--page">
+          <div className="detail-artwork">
+            {imageUrl ? (
+              <img src={imageUrl} alt={activeSong.name} />
+            ) : (
+              <div className="artwork-fallback">
+                <span>999</span>
               </div>
-            ))}
-            {playlist.length - radioIndex - 1 < 5 && (
-              <p className="field-hint">More tracks loading soon...</p>
             )}
+          </div>
+
+          <div className="detail-copy radio-copy">
+            <p className="eyebrow">Now Playing</p>
+            <h2>{activeSong?.name || "Unknown Track"}</h2>
+            <p>{activeSong?.credited_artists || "Juice WRLD"}</p>
+            <p className="detail-description">
+              {activeSong?.era?.name || "Unknown era"} -{" "}
+              {formatCategoryLabel(activeSong?.category)}
+            </p>
+          </div>
+
+          <div className="player-panel">
+            <div className="mobile-player-actions">
+              <button type="button" className="chip" onClick={playPrevious}>
+                Prev
+              </button>
+              <button type="button" className="chip is-active" onClick={handleStartRadio}>
+                Start radio
+              </button>
+              <button type="button" className="chip is-active" onClick={togglePlayPause}>
+                {isPlaying ? "Pause" : "Play"}
+              </button>
+              <button type="button" className="chip" onClick={playNext}>
+                Next
+              </button>
+            </div>
+            <div className="mobile-player-actions mobile-player-actions--secondary">
+              <button
+                type="button"
+                onClick={handleShuffle}
+                className={`chip ${isShuffled ? "is-active" : ""}`}
+              >
+                Shuffle
+              </button>
+            </div>
+            <p className="player-note">
+              The shared player stays mounted so playback can continue while you browse
+              other pages or background your phone browser.
+            </p>
+          </div>
+
+          <div className="meta-block">
+            <p className="block-label">Coming up next</p>
+            <div className="radio-queue">
+              {playlist.slice(radioIndex + 1, radioIndex + 6).map((song) => (
+                <div key={song.id} className="radio-queue__item">
+                  <strong>{song.name}</strong> - {song.credited_artists || "Juice WRLD"}
+                </div>
+              ))}
+              {playlist.length - radioIndex - 1 < 5 && (
+                <p className="field-hint">More tracks loading soon...</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

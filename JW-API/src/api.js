@@ -49,6 +49,19 @@ export function fetchSong(id, options = {}) {
   return fetchJson(`/juicewrld/songs/${id}/`, options);
 }
 
+export function browseFiles({ path = "", search = "" } = {}, options = {}) {
+  const params = new URLSearchParams();
+
+  if (path) params.set("path", path);
+  if (search) params.set("search", search);
+
+  const queryString = params.toString();
+  return fetchJson(
+    `/juicewrld/files/browse/${queryString ? `?${queryString}` : ""}`,
+    options,
+  );
+}
+
 export function fetchCategories(options = {}) {
   return fetchJson("/juicewrld/categories/", { ...options, useCache: true });
 }
@@ -63,6 +76,11 @@ export function buildImageUrl(path) {
 }
 
 export function buildAudioUrl(path) {
+  if (!path) return "";
+  return `${API_BASE_URL}/juicewrld/files/download/?path=${encodeURIComponent(path)}`;
+}
+
+export function buildFileUrl(path) {
   if (!path) return "";
   return `${API_BASE_URL}/juicewrld/files/download/?path=${encodeURIComponent(path)}`;
 }

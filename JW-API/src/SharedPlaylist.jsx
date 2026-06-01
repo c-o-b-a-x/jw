@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import "./App.css";
 import { useAudioPlayer } from "./audio-player";
 import { parseShareToken } from "./playlistStore";
+import SiteNav from "./SiteNav";
 import { useToast } from "./toast";
 
 const API_BASE_URL = "https://juicewrldapi.com";
@@ -71,28 +72,31 @@ export default function SharedPlaylist() {
 
   if (isLoading) {
     return (
-      <div className="app-shell">
-        <div className="detail-panel page-shell page-shell--narrow">
-          <div className="skeleton-stack">
-            <div className="skeleton-card skeleton-card--hero" />
-            <div className="skeleton-card skeleton-card--meta" />
-            <div className="skeleton-card skeleton-card--list" />
+      <>
+        <SiteNav />
+        <div className="app-shell">
+          <div className="detail-panel page-shell page-shell--narrow">
+            <div className="skeleton-stack">
+              <div className="skeleton-card skeleton-card--hero" />
+              <div className="skeleton-card skeleton-card--meta" />
+              <div className="skeleton-card skeleton-card--list" />
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (error || !playlist) {
     return (
-      <div className="app-shell">
-        <div className="status-banner" role="alert">
-          {error || "Playlist not found."}
+      <>
+        <SiteNav />
+        <div className="app-shell">
+          <div className="status-banner" role="alert">
+            {error || "Playlist not found."}
+          </div>
         </div>
-        <Link to="/" className="chip panel-back-link">
-          Back to home
-        </Link>
-      </div>
+      </>
     );
   }
 
@@ -110,12 +114,11 @@ export default function SharedPlaylist() {
   }
 
   return (
-    <div className="app-shell">
-      <Link to="/" className="chip panel-back-link">
-        Back to home
-      </Link>
+    <>
+      <SiteNav />
+      <div className="app-shell">
 
-      <div className="detail-panel page-shell page-shell--narrow">
+        <div className="detail-panel page-shell page-shell--narrow">
         <div className="detail-copy">
           <p className="eyebrow">Shared Playlist</p>
           <h2>{playlist.name}</h2>
@@ -179,7 +182,8 @@ export default function SharedPlaylist() {
             </div>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

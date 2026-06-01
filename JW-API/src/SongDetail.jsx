@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useAudioPlayer } from "./audio-player";
+import SiteNav from "./SiteNav";
 import {
+  browseFiles,
   buildAudioUrl,
+  buildFileUrl,
   buildImageUrl,
   fetchSong,
   fetchSongs,
@@ -33,6 +36,106 @@ function createSessionNotes(song) {
   ];
 }
 
+function normalizeSearchTerm(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function tokenizeSearchTerm(value) {
+  return normalizeSearchTerm(value)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function isVideoFile(item) {
+  const candidatePath =
+    item?.path || item?.relative_path || item?.name || item?.id || "";
+  return /\.(mp4|mov)$/i.test(candidatePath);
+}
+
+function extractVideoPath(item) {
+  return item?.path || item?.relative_path || item?.id || "";
+}
+
+function extractVideoLabel(item) {
+  return item?.name || item?.title || extractVideoPath(item).split("/").pop() || "Untitled video";
+}
+
+function scoreVideoMatch(video, terms) {
+  const normalizedLabel = normalizeSearchTerm(extractVideoLabel(video));
+  const normalizedPath = normalizeSearchTerm(extractVideoPath(video));
+  const labelTokens = tokenizeSearchTerm(normalizedLabel);
+  const pathTokens = tokenizeSearchTerm(normalizedPath);
+  let score = 0;
+  let hasStrongMatch = false;
+
+  terms.forEach((term, index) => {
+    const normalizedTerm = normalizeSearchTerm(term);
+    const termTokens = tokenizeSearchTerm(term);
+    if (!normalizedTerm) return;
+
+    const weight = Math.max(14 - index * 2, 4);
+    const tokenOverlap = termTokens.filter(
+      (token) => labelTokens.includes(token) || pathTokens.includes(token),
+    ).length;
+    const missingTokens = termTokens.length - tokenOverlap;
+
+    if (termTokens.length >= 2 && tokenOverlap === 1 && missingTokens >= 1) {
+      score -= weight * 3;
+      return;
+    }
+
+    if (normalizedLabel === normalizedTerm) {
+      score += weight * 5;
+      hasStrongMatch = true;
+    } else if (normalizedPath === normalizedTerm) {
+      score += weight * 4;
+      hasStrongMatch = true;
+    } else if (normalizedLabel.includes(normalizedTerm)) {
+      score += weight * 3;
+      if (tokenOverlap >= Math.max(2, termTokens.length - 1)) {
+        hasStrongMatch = true;
+      }
+    } else if (normalizedPath.includes(normalizedTerm)) {
+      score += weight * 2;
+      if (tokenOverlap >= Math.max(2, termTokens.length - 1)) {
+        hasStrongMatch = true;
+      }
+    }
+
+    if (tokenOverlap === termTokens.length && termTokens.length > 0) {
+      score += weight * 2;
+      hasStrongMatch = true;
+    } else if (tokenOverlap >= 2) {
+      score += weight;
+    }
+  });
+
+  if (normalizedLabel.includes("music video")) score += 6;
+  if (normalizedPath.includes("music video")) score += 4;
+  if (normalizedLabel.includes("official")) score += 3;
+
+  if (!hasStrongMatch) {
+    return -1;
+  }
+
+  return score;
+}
+
+function dedupeVideos(items) {
+  const seenPaths = new Set();
+
+  return items.filter((item) => {
+    const path = extractVideoPath(item);
+    if (!path || seenPaths.has(path)) return false;
+    seenPaths.add(path);
+    return true;
+  });
+}
+
 export default function SongDetail() {
   const { id } = useParams();
   const location = useLocation();
@@ -43,7 +146,11 @@ export default function SongDetail() {
   const [relatedSongs, setRelatedSongs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [relatedLoading, setRelatedLoading] = useState(false);
+  const [videosLoading, setVideosLoading] = useState(false);
   const [error, setError] = useState("");
+  const [videoError, setVideoError] = useState("");
+  const [videos, setVideos] = useState([]);
+  const [selectedVideoPath, setSelectedVideoPath] = useState("");
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
 
   useEffect(() => {
@@ -119,11 +226,85 @@ export default function SongDetail() {
     return () => controller.abort();
   }, [song]);
 
+  useEffect(() => {
+    if (!song) return;
+
+    const controller = new AbortController();
+    const searchTerms = dedupeVideos(
+      [
+        { path: song.name, name: song.name },
+        ...(song.track_titles || []).map((title) => ({ path: title, name: title })),
+      ],
+    )
+      .map((entry) => entry.name)
+      .filter(Boolean);
+
+    async function loadVideos() {
+      setVideosLoading(true);
+      setVideoError("");
+
+      try {
+        const settled = await Promise.allSettled(
+          searchTerms.map((term) =>
+            browseFiles(
+              {
+                search: term,
+              },
+              { signal: controller.signal },
+            ),
+          ),
+        );
+
+        const matchedVideos = settled
+          .filter((result) => result.status === "fulfilled")
+          .flatMap((result) => result.value?.items || [])
+          .filter(isVideoFile);
+
+        const rankedVideos = dedupeVideos(matchedVideos)
+          .map((video) => ({
+            ...video,
+            matchScore: scoreVideoMatch(video, [
+              song.name,
+              ...(song.track_titles || []),
+              song.credited_artists,
+            ]),
+          }))
+          .filter((video) => video.matchScore > 0)
+          .sort((left, right) => right.matchScore - left.matchScore);
+
+        setVideos(rankedVideos);
+        setSelectedVideoPath((currentPath) => {
+          if (currentPath && rankedVideos.some((video) => extractVideoPath(video) === currentPath)) {
+            return currentPath;
+          }
+
+          return extractVideoPath(rankedVideos[0]) || "";
+        });
+      } catch (fetchError) {
+        if (fetchError.name !== "AbortError") {
+          setVideos([]);
+          setSelectedVideoPath("");
+          setVideoError("Video files could not be loaded right now.");
+        }
+      } finally {
+        setVideosLoading(false);
+      }
+    }
+
+    loadVideos();
+    return () => controller.abort();
+  }, [song]);
+
   const songImage = buildImageUrl(song?.image_url);
   const downloadUrl = buildAudioUrl(song?.path);
   const isCurrentSong = currentSong?.id === song?.id;
   const metaRows = useMemo(() => (song ? createMetaRows(song) : []), [song]);
   const sessionNotes = useMemo(() => (song ? createSessionNotes(song) : []), [song]);
+  const selectedVideo = useMemo(
+    () => videos.find((video) => extractVideoPath(video) === selectedVideoPath) || videos[0] || null,
+    [selectedVideoPath, videos],
+  );
+  const selectedVideoUrl = buildFileUrl(extractVideoPath(selectedVideo));
   const eraLink = song?.era?.name ? `/?search=${encodeURIComponent(song.era.name)}` : null;
   const producerLink = song?.producers
     ? `/?search=${encodeURIComponent(song.producers)}`
@@ -144,6 +325,10 @@ export default function SongDetail() {
 
     if (catalogReturn.category) {
       nextParams.set("category", catalogReturn.category);
+    }
+
+    if (catalogReturn.sort && catalogReturn.sort !== "default") {
+      nextParams.set("sort", catalogReturn.sort);
     }
 
     if (catalogReturn.page && catalogReturn.page > 1) {
@@ -167,53 +352,44 @@ export default function SongDetail() {
 
   if (isLoading && !song) {
     return (
-      <div className="app-shell">
-        <Link
-          to={backToCatalog}
-          state={catalogReturn ? { catalogReturn } : undefined}
-          className="chip"
-          style={{ marginBottom: 24, display: "inline-block" }}
-        >
-          Back to catalog
-        </Link>
-        <div className="detail-panel detail-panel--page">
-          <div className="skeleton-card" style={{ height: 300 }} />
-          <div className="skeleton-card" style={{ height: 100, marginTop: 20 }} />
+      <>
+        <SiteNav />
+        <div className="app-shell">
+          <div className="detail-panel detail-panel--page">
+            <div className="skeleton-card" style={{ height: 300 }} />
+            <div className="skeleton-card" style={{ height: 100, marginTop: 20 }} />
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (error || !song) {
     return (
-      <div className="app-shell">
-        <div className="status-banner" role="alert">
-          {error || "Song not found."}
+      <>
+        <SiteNav />
+        <div className="app-shell">
+          <div className="status-banner" role="alert">
+            {error || "Song not found."}
+          </div>
         </div>
-        <Link
-          to={backToCatalog}
-          state={catalogReturn ? { catalogReturn } : undefined}
-          className="chip"
-          style={{ display: "inline-block", marginTop: 20 }}
-        >
-          Back to catalog
-        </Link>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="app-shell">
-      <Link
-        to={backToCatalog}
-        state={catalogReturn ? { catalogReturn } : undefined}
-        className="chip"
-        style={{ marginBottom: 24, display: "inline-block" }}
-      >
-        Back to catalog
-      </Link>
+    <>
+      <SiteNav />
+      <div className="app-shell">
+        <Link
+          to={backToCatalog}
+          state={catalogReturn ? { catalogReturn } : undefined}
+          className="chip panel-back-link"
+        >
+          Back to catalog
+        </Link>
 
-      <div className="detail-layout detail-layout--page">
+        <div className="detail-layout detail-layout--page">
         <div className="detail-panel detail-panel--page detail-panel--feature">
           <section className="detail-stage">
             <div className="detail-stage__media">
@@ -265,14 +441,17 @@ export default function SongDetail() {
                 ))}
               </div>
 
-              <div className="player-panel player-panel--feature">
-                <div className="mobile-player-actions">
-                  <button type="button" className="chip is-active" onClick={handlePlaySong}>
-                    {isCurrentSong && isPlaying ? "Pause in player" : "Play in player"}
-                  </button>
-                  {downloadUrl ? (
-                    <a
-                      href={downloadUrl}
+                <div className="player-panel player-panel--feature">
+                  <div className="mobile-player-actions">
+                    <button type="button" className="chip is-active" onClick={handlePlaySong}>
+                      {isCurrentSong && isPlaying ? "Pause in player" : "Play in player"}
+                    </button>
+                    <Link to="/videos" className="chip">
+                      Open video archive
+                    </Link>
+                    {downloadUrl ? (
+                      <a
+                        href={downloadUrl}
                       className="chip"
                       download={`${song.name || "juice-wrld-track"}.mp3`}
                     >
@@ -320,6 +499,52 @@ export default function SongDetail() {
               </pre>
             </div>
           )}
+
+          <div className="meta-block">
+            <div className="block-header">
+              <p className="block-label">Video archive</p>
+              <span className="block-hint">
+                {videosLoading ? "Searching MP4 files..." : `${videos.length} videos found`}
+              </span>
+            </div>
+
+            {selectedVideo ? (
+              <div className="video-stage">
+                <div className="video-stage__player">
+                  <video
+                    key={extractVideoPath(selectedVideo)}
+                    controls
+                    preload="metadata"
+                    poster={songImage || undefined}
+                    className="video-stage__video"
+                    src={selectedVideoUrl}
+                  >
+                    Your browser does not support embedded video playback.
+                  </video>
+                </div>
+                <div className="video-stage__details">
+                  <strong>{extractVideoLabel(selectedVideo)}</strong>
+                  <span>{extractVideoPath(selectedVideo)}</span>
+                </div>
+              </div>
+            ) : null}
+
+            {videoError ? (
+              <div className="utility-empty utility-empty--compact">
+                <strong>Video lookup failed</strong>
+                <span>{videoError}</span>
+              </div>
+            ) : null}
+
+            {!videosLoading && !selectedVideo && !videoError ? (
+              <div className="utility-empty utility-empty--compact">
+                <strong>No MP4 matches yet</strong>
+                <span>
+                  The archive search did not return any MP4 files matching this song title or its alternate names.
+                </span>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <aside className="detail-sidebar">
@@ -336,6 +561,40 @@ export default function SongDetail() {
                 </article>
               ))}
             </div>
+          </section>
+
+          <section className="detail-sidecard">
+            <div className="block-header">
+              <p className="block-label">Video list</p>
+              <span className="block-hint">Swap the showcase</span>
+            </div>
+
+            {videos.length > 0 ? (
+              <div className="video-list">
+                {videos.map((video, index) => {
+                  const videoPath = extractVideoPath(video);
+                  const isSelected = videoPath === extractVideoPath(selectedVideo);
+
+                  return (
+                    <button
+                      key={videoPath}
+                      type="button"
+                      className={`video-list__item ${isSelected ? "is-selected" : ""}`}
+                      onClick={() => setSelectedVideoPath(videoPath)}
+                    >
+                      <strong>{extractVideoLabel(video)}</strong>
+                      <span>{index + 1}. MP4 archive file</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="section-subtitle">
+                {videosLoading
+                  ? "Looking through the original files section for MP4 matches..."
+                  : "When archive videos exist for this song, they will appear here for quick swapping."}
+              </p>
+            )}
           </section>
 
           <section className="detail-sidecard">
@@ -388,7 +647,8 @@ export default function SongDetail() {
             )}
           </section>
         </aside>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

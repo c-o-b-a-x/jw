@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAudioPlayer } from "./audio-player";
 import {
   SONGS_PER_PAGE,
@@ -19,29 +14,156 @@ import {
   createPlaylist,
   listPlaylists,
 } from "./playlistStore";
+import SiteNav from "./SiteNav";
 import "./App.css";
-import logo from "./assets/logo999.png";
 import { useToast } from "./toast";
+
+const SORT_OPTIONS = [
+  {
+    value: "default",
+    label: "Default order",
+    description: "Keep the API's natural order for the current page.",
+  },
+  {
+    value: "latest_surfaced",
+    label: "Latest surfaced",
+    description: "Show the most recently surfaced or released songs first.",
+  },
+  {
+    value: "date_recorded",
+    label: "Date recorded",
+    description: "Sort by the newest recorded sessions first.",
+  },
+  {
+    value: "length",
+    label: "Length",
+    description: "Push longer tracks ahead of shorter ones.",
+  },
+];
+
+function parseLooseDate(value) {
+  if (!value) return null;
+
+  const text = String(value).replace(/\r/g, " ").replace(/\n/g, " ");
+  const parsedCandidates = [];
+  const fullDateMatches = text.match(
+    /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b/gi,
+  );
+
+  fullDateMatches?.forEach((match) => {
+    const parsed = Date.parse(match);
+    if (!Number.isNaN(parsed)) {
+      parsedCandidates.push(parsed);
+    }
+  });
+
+  const isoDateMatches = text.match(/\b\d{4}-\d{2}-\d{2}\b/g);
+  isoDateMatches?.forEach((match) => {
+    const parsed = Date.parse(match);
+    if (!Number.isNaN(parsed)) {
+      parsedCandidates.push(parsed);
+    }
+  });
+
+  if (parsedCandidates.length) {
+    return Math.max(...parsedCandidates);
+  }
+
+  const yearMatches = text.match(/\b(19|20)\d{2}\b/g);
+  if (yearMatches?.length) {
+    return Math.max(
+      ...yearMatches
+        .map((year) => Date.parse(`${year}-01-01`))
+        .filter((parsed) => !Number.isNaN(parsed)),
+    );
+  }
+
+  return null;
+}
+
+function parseLengthToSeconds(value) {
+  if (!value) return null;
+
+  const parts = String(value)
+    .split(":")
+    .map((segment) => Number.parseInt(segment.trim(), 10));
+
+  if (!parts.length || parts.some((segment) => Number.isNaN(segment))) {
+    return null;
+  }
+
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+
+  return null;
+}
+
+function getSurfacedStatusValue(song) {
+  return (
+    parseLooseDate(song?.leak_status) ??
+    parseLooseDate(song?.leakStatus) ??
+    parseLooseDate(song?.date_leaked) ??
+    parseLooseDate(song?.preview_date) ??
+    0
+  );
+}
+
+function getSongSortValue(song, sortMode) {
+  if (sortMode === "latest_surfaced") {
+    if (song.category === "released") {
+      return 0;
+    }
+
+    if (song.category === "unreleased") {
+      return getSurfacedStatusValue(song);
+    }
+
+    return (
+      parseLooseDate(song.preview_date) ??
+      getSurfacedStatusValue(song) ??
+      parseLooseDate(song.release_date) ??
+      0
+    );
+  }
+
+  if (sortMode === "date_recorded") {
+    if (song.category === "released") {
+      return 0;
+    }
+
+    return parseLooseDate(song.record_dates) ?? 0;
+  }
+
+  if (sortMode === "length") {
+    return parseLengthToSeconds(song.length) ?? 0;
+  }
+
+  return 0;
+}
 
 export default function App() {
   const [songs, setSongs] = useState([]);
+  const [totalSongCount, setTotalSongCount] = useState(0);
   const [categories, setCategories] = useState([]);
   const [stats, setStats] = useState(null);
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("");
+  const [sortMode, setSortMode] = useState("default");
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [spotlightIndex, setSpotlightIndex] = useState(0);
 
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState("home");
-  const heroRef = useRef(null);
   const songsRef = useRef(null);
-  const footerRef = useRef(null);
   const categoryMenuRef = useRef(null);
+  const sortMenuRef = useRef(null);
   const hasRestoredCardRef = useRef(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -57,59 +179,8 @@ export default function App() {
   const [playlistPickerSong, setPlaylistPickerSong] = useState(null);
   const [availablePlaylists, setAvailablePlaylists] = useState([]);
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
+  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const { pushToast } = useToast();
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollPos = window.scrollY + 120;
-      const heroSection = heroRef.current;
-      const songsSection = songsRef.current;
-      const footerSection = footerRef.current;
-
-      if (
-        heroSection &&
-        scrollPos < heroSection.offsetTop + heroSection.offsetHeight
-      ) {
-        setActiveNav("home");
-      } else if (
-        songsSection &&
-        scrollPos < songsSection.offsetTop + songsSection.offsetHeight
-      ) {
-        setActiveNav("explore");
-      } else if (footerSection) {
-        setActiveNav("about");
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  function scrollToSection(section, navName) {
-    setActiveNav(navName);
-    setIsMenuOpen(false);
-
-    let element = null;
-    if (section === "home") element = heroRef.current;
-    if (section === "explore") element = songsRef.current;
-    if (section === "about") element = footerRef.current;
-
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth > 768 && isMenuOpen) {
-        setIsMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [isMenuOpen]);
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -127,6 +198,21 @@ export default function App() {
   }, [isCategoryMenuOpen]);
 
   useEffect(() => {
+    function handlePointerDown(event) {
+      if (
+        isSortMenuOpen &&
+        sortMenuRef.current &&
+        !sortMenuRef.current.contains(event.target)
+      ) {
+        setIsSortMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [isSortMenuOpen]);
+
+  useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setSearchTerm(searchInput.trim());
     }, 300);
@@ -137,6 +223,7 @@ export default function App() {
   useEffect(() => {
     const nextSearch = searchParams.get("search") ?? "";
     const nextCategory = searchParams.get("category") ?? "";
+    const nextSort = searchParams.get("sort") ?? "default";
     const rawPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
     const nextPage = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
 
@@ -144,6 +231,11 @@ export default function App() {
       setSearchInput(nextSearch);
       setSearchTerm(nextSearch);
       setActiveCategory(nextCategory);
+      setSortMode(
+        SORT_OPTIONS.some((option) => option.value === nextSort)
+          ? nextSort
+          : "default",
+      );
       setPage(nextPage);
     });
 
@@ -189,18 +281,62 @@ export default function App() {
       setErrorMessage("");
 
       try {
-        const data = await fetchSongs(
-          {
-            page,
-            pageSize: SONGS_PER_PAGE,
-            category: activeCategory,
-            search: searchTerm,
-          },
-          { signal: controller.signal },
-        );
-        const results = data.results ?? [];
+        let results = [];
+        let totalCount = 0;
+
+        if (sortMode === "default") {
+          const data = await fetchSongs(
+            {
+              page,
+              pageSize: SONGS_PER_PAGE,
+              category: activeCategory,
+              search: searchTerm,
+            },
+            { signal: controller.signal },
+          );
+
+          results = data.results ?? [];
+          totalCount = data.count ?? results.length;
+        } else {
+          const firstPage = await fetchSongs(
+            {
+              page: 1,
+              pageSize: 100,
+              category: activeCategory,
+              search: searchTerm,
+            },
+            { signal: controller.signal },
+          );
+
+          totalCount = firstPage.count ?? 0;
+          results = firstPage.results ?? [];
+
+          const totalPages = Math.ceil(totalCount / 100);
+
+          if (totalPages > 1) {
+            const remainingPages = await Promise.all(
+              Array.from({ length: totalPages - 1 }, (_, index) =>
+                fetchSongs(
+                  {
+                    page: index + 2,
+                    pageSize: 100,
+                    category: activeCategory,
+                    search: searchTerm,
+                  },
+                  { signal: controller.signal },
+                ),
+              ),
+            );
+
+            results = [
+              ...results,
+              ...remainingPages.flatMap((response) => response.results ?? []),
+            ];
+          }
+        }
 
         setSongs(results);
+        setTotalSongCount(totalCount || results.length);
         if (!results.length) {
           setErrorMessage(
             "No songs matched this filter. Try a broader search.",
@@ -209,6 +345,7 @@ export default function App() {
       } catch (error) {
         if (error.name !== "AbortError") {
           setSongs([]);
+          setTotalSongCount(0);
           setErrorMessage(
             "The API request failed. Check your network and try again.",
           );
@@ -220,7 +357,7 @@ export default function App() {
 
     loadSongs();
     return () => controller.abort();
-  }, [activeCategory, page, searchTerm]);
+  }, [activeCategory, page, searchTerm, sortMode]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -267,14 +404,42 @@ export default function App() {
   const topCategories = Object.entries(categoryStats)
     .sort((left, right) => right[1] - left[1])
     .slice(0, 3);
-  const featuredSongs = useMemo(() => songs.slice(0, 3), [songs]);
-  const spotlightSong = songs[spotlightIndex] ?? null;
+  const sortedSongs = useMemo(() => {
+    if (sortMode === "default") {
+      return songs;
+    }
+
+    return [...songs].sort((left, right) => {
+      const rightValue = getSongSortValue(right, sortMode);
+      const leftValue = getSongSortValue(left, sortMode);
+
+      if (rightValue !== leftValue) {
+        return rightValue - leftValue;
+      }
+
+      return String(left.name || "").localeCompare(String(right.name || ""));
+    });
+  }, [songs, sortMode]);
+  const featuredSongs = useMemo(() => sortedSongs.slice(0, 3), [sortedSongs]);
+  const spotlightSong = sortedSongs[spotlightIndex] ?? null;
+  const displayedSongs = useMemo(() => {
+    if (sortMode === "default") {
+      return sortedSongs;
+    }
+
+    const startIndex = (page - 1) * SONGS_PER_PAGE;
+    return sortedSongs.slice(startIndex, startIndex + SONGS_PER_PAGE);
+  }, [page, sortedSongs, sortMode]);
   const currentProgress =
     duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
+  const activeSortOption =
+    SORT_OPTIONS.find((option) => option.value === sortMode) ?? SORT_OPTIONS[0];
+  const totalPages = Math.max(1, Math.ceil(totalSongCount / SONGS_PER_PAGE));
 
   function updateCatalogParams({
     search = searchTerm,
     category = activeCategory,
+    sort = sortMode,
     nextPage = page,
   } = {}) {
     setSearchParams((currentParams) => {
@@ -292,6 +457,12 @@ export default function App() {
         nextParams.delete("category");
       }
 
+      if (sort && sort !== "default") {
+        nextParams.set("sort", sort);
+      } else {
+        nextParams.delete("sort");
+      }
+
       if (nextPage > 1) {
         nextParams.set("page", String(nextPage));
       } else {
@@ -306,6 +477,7 @@ export default function App() {
     return {
       search: searchTerm,
       category: activeCategory,
+      sort: sortMode,
       page,
       scrollSongId: songId,
     };
@@ -323,13 +495,27 @@ export default function App() {
     setIsCategoryMenuOpen(false);
   }
 
+  function selectSort(nextSort) {
+    setSortMode(nextSort);
+    setPage(1);
+    setIsSortMenuOpen(false);
+    updateCatalogParams({ sort: nextSort, nextPage: 1 });
+  }
+
   function resetCatalogFilters() {
     setSearchInput("");
     setSearchTerm("");
     setActiveCategory("");
+    setSortMode("default");
     setPage(1);
     setIsCategoryMenuOpen(false);
-    updateCatalogParams({ search: "", category: "", nextPage: 1 });
+    setIsSortMenuOpen(false);
+    updateCatalogParams({
+      search: "",
+      category: "",
+      sort: "default",
+      nextPage: 1,
+    });
   }
 
   function openRandomSong() {
@@ -391,114 +577,10 @@ export default function App() {
 
   return (
     <>
-      <nav className="top-navbar">
-        <img
-          src={logo}
-          alt="999 logo"
-          className="navbar-logo"
-          onClick={() => scrollToSection("home", "home")}
-          style={{ cursor: "pointer" }}
-        />
-        <button
-          className="menu-toggle"
-          onClick={() => setIsMenuOpen((open) => !open)}
-          aria-label="Toggle menu"
-        >
-          Menu
-        </button>
-        <ul className={`nav-links ${isMenuOpen ? "open" : ""}`}>
-          <li>
-            <a
-              href="#home"
-              className={
-                activeNav === "home" && location.pathname === "/"
-                  ? "active"
-                  : ""
-              }
-              onClick={(event) => {
-                event.preventDefault();
-                if (location.pathname !== "/") {
-                  window.location.href = "/";
-                  return;
-                }
-                scrollToSection("home", "home");
-              }}
-            >
-              Home
-            </a>
-          </li>
-          <li>
-            <a
-              href="#explore"
-              className={
-                activeNav === "explore" && location.pathname === "/"
-                  ? "active"
-                  : ""
-              }
-              onClick={(event) => {
-                event.preventDefault();
-                if (location.pathname !== "/") {
-                  window.location.href = "/#explore";
-                  return;
-                }
-                scrollToSection("explore", "explore");
-              }}
-            >
-              Explore
-            </a>
-          </li>
-          <li>
-            <Link
-              to="/albums"
-              className={location.pathname.startsWith("/albums") ? "active" : ""}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Albums
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/radio"
-              className={location.pathname === "/radio" ? "active" : ""}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Radio
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/playlists"
-              className={location.pathname === "/playlists" ? "active" : ""}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Playlists
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/create-playlist"
-              className={
-                location.pathname === "/create-playlist" ? "active" : ""
-              }
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Create Playlist
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/about"
-              className={location.pathname === "/about" ? "active" : ""}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              About
-            </Link>
-          </li>
-        </ul>
-      </nav>
+      <SiteNav />
 
       <main className="app-shell">
-        <section className="hero-panel" ref={heroRef}>
+        <section className="hero-panel">
           <div className="hero-copy">
             <p className="eyebrow">Juice WRLD Discography Explorer</p>
 
@@ -510,7 +592,12 @@ export default function App() {
               <button
                 type="button"
                 className="cta-button"
-                onClick={() => scrollToSection("explore", "explore")}
+                onClick={() =>
+                  songsRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  })
+                }
               >
                 Browse tracks
               </button>
@@ -533,7 +620,7 @@ export default function App() {
               </article>
               <article>
                 <span>Results on page</span>
-                <strong>{formatCount(songs.length)}</strong>
+                <strong>{formatCount(displayedSongs.length)}</strong>
               </article>
               <article>
                 <span>Current category</span>
@@ -708,6 +795,43 @@ export default function App() {
               ) : null}
             </div>
           </label>
+          <label className="field">
+            <span>Sort by</span>
+            <div
+              className={`custom-select ${isSortMenuOpen ? "is-open" : ""}`}
+              ref={sortMenuRef}
+            >
+              <button
+                type="button"
+                className="custom-select__trigger"
+                aria-haspopup="listbox"
+                aria-expanded={isSortMenuOpen}
+                onClick={() => setIsSortMenuOpen((open) => !open)}
+              >
+                <span>{activeSortOption.label}</span>
+                <span className="custom-select__chevron" aria-hidden="true">
+                  â–¾
+                </span>
+              </button>
+              {isSortMenuOpen ? (
+                <div className="custom-select__menu" role="listbox">
+                  {SORT_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`custom-select__option ${
+                        sortMode === option.value ? "is-selected" : ""
+                      }`}
+                      onClick={() => selectSort(option.value)}
+                    >
+                      <strong>{option.label}</strong>
+                      <span>{option.description}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </label>
           <div className="filter-summary">
             <span>Page {page}</span>
             <span>
@@ -715,6 +839,7 @@ export default function App() {
                 ? `Searching for "${searchTerm}"`
                 : "Browsing the full catalog"}
             </span>
+            <span>Sorted by {activeSortOption.label.toLowerCase()}</span>
           </div>
         </section>
 
@@ -792,7 +917,7 @@ export default function App() {
                   setPage(nextPage);
                   updateCatalogParams({ nextPage });
                 }}
-                disabled={isLoading || songs.length < SONGS_PER_PAGE}
+                disabled={isLoading || page >= totalPages}
               >
                 Next
               </button>
@@ -841,7 +966,7 @@ export default function App() {
                     aria-hidden="true"
                   />
                 ))
-              : songs.map((song) => (
+              : displayedSongs.map((song) => (
                   <article
                     key={song.id}
                     id={`song-card-${song.id}`}
@@ -883,7 +1008,7 @@ export default function App() {
                 ))}
           </div>
 
-          {!isLoading && songs.length === 0 ? (
+          {!isLoading && sortedSongs.length === 0 ? (
             <div className="utility-empty utility-empty--panel">
               <strong>No songs matched this page</strong>
               <span>
@@ -914,7 +1039,7 @@ export default function App() {
           ) : null}
         </div>
 
-        <footer className="site-footer" ref={footerRef}>
+        <footer className="site-footer">
           <p>Built with React and the Juice WRLD API.</p>
           <div className="footer-content">
             <h3 id="footer-text">Developed by Coby Hughes</h3>
