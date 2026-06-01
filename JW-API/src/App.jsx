@@ -41,6 +41,24 @@ const SORT_OPTIONS = [
   },
 ];
 
+const SEARCH_OPTIONS = [
+  {
+    value: "default",
+    label: "Song search",
+    description: "Search titles, artists, and alternate track titles.",
+  },
+  {
+    value: "deep",
+    label: "Deep search",
+    description: "Search titles, artists, producers, and alternate track titles.",
+  },
+  {
+    value: "lyrics",
+    label: "Lyrics search",
+    description: "Search inside lyric text to find tracks by quoted lines or phrases.",
+  },
+];
+
 function parseLooseDate(value) {
   if (!value) return null;
 
@@ -146,6 +164,23 @@ function getSongSortValue(song, sortMode) {
   return 0;
 }
 
+function buildSongQueryOptions(searchMode, searchTerm) {
+  const trimmedSearch = searchTerm.trim();
+  if (!trimmedSearch) {
+    return {};
+  }
+
+  if (searchMode === "deep") {
+    return { searchAll: trimmedSearch };
+  }
+
+  if (searchMode === "lyrics") {
+    return { lyrics: trimmedSearch };
+  }
+
+  return { search: trimmedSearch };
+}
+
 export default function App() {
   const [songs, setSongs] = useState([]);
   const [totalSongCount, setTotalSongCount] = useState(0);
@@ -153,6 +188,7 @@ export default function App() {
   const [stats, setStats] = useState(null);
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchMode, setSearchMode] = useState("default");
   const [activeCategory, setActiveCategory] = useState("");
   const [sortMode, setSortMode] = useState("default");
   const [page, setPage] = useState(1);
@@ -162,6 +198,7 @@ export default function App() {
   const [spotlightIndex, setSpotlightIndex] = useState(0);
 
   const songsRef = useRef(null);
+  const searchModeMenuRef = useRef(null);
   const categoryMenuRef = useRef(null);
   const sortMenuRef = useRef(null);
   const hasRestoredCardRef = useRef(false);
@@ -178,9 +215,25 @@ export default function App() {
   } = useAudioPlayer();
   const [playlistPickerSong, setPlaylistPickerSong] = useState(null);
   const [availablePlaylists, setAvailablePlaylists] = useState([]);
+  const [isSearchModeMenuOpen, setIsSearchModeMenuOpen] = useState(false);
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const { pushToast } = useToast();
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (
+        isSearchModeMenuOpen &&
+        searchModeMenuRef.current &&
+        !searchModeMenuRef.current.contains(event.target)
+      ) {
+        setIsSearchModeMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [isSearchModeMenuOpen]);
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -222,6 +275,7 @@ export default function App() {
 
   useEffect(() => {
     const nextSearch = searchParams.get("search") ?? "";
+    const nextSearchMode = searchParams.get("searchMode") ?? "default";
     const nextCategory = searchParams.get("category") ?? "";
     const nextSort = searchParams.get("sort") ?? "default";
     const rawPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
@@ -230,6 +284,11 @@ export default function App() {
     const frameId = window.requestAnimationFrame(() => {
       setSearchInput(nextSearch);
       setSearchTerm(nextSearch);
+      setSearchMode(
+        SEARCH_OPTIONS.some((option) => option.value === nextSearchMode)
+          ? nextSearchMode
+          : "default",
+      );
       setActiveCategory(nextCategory);
       setSortMode(
         SORT_OPTIONS.some((option) => option.value === nextSort)
@@ -283,6 +342,7 @@ export default function App() {
       try {
         let results = [];
         let totalCount = 0;
+        const queryOptions = buildSongQueryOptions(searchMode, searchTerm);
 
         if (sortMode === "default") {
           const data = await fetchSongs(
@@ -290,7 +350,7 @@ export default function App() {
               page,
               pageSize: SONGS_PER_PAGE,
               category: activeCategory,
-              search: searchTerm,
+              ...queryOptions,
             },
             { signal: controller.signal },
           );
@@ -303,7 +363,7 @@ export default function App() {
               page: 1,
               pageSize: 100,
               category: activeCategory,
-              search: searchTerm,
+              ...queryOptions,
             },
             { signal: controller.signal },
           );
@@ -321,7 +381,7 @@ export default function App() {
                     page: index + 2,
                     pageSize: 100,
                     category: activeCategory,
-                    search: searchTerm,
+                    ...queryOptions,
                   },
                   { signal: controller.signal },
                 ),
@@ -357,7 +417,7 @@ export default function App() {
 
     loadSongs();
     return () => controller.abort();
-  }, [activeCategory, page, searchTerm, sortMode]);
+  }, [activeCategory, page, searchMode, searchTerm, sortMode]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -434,10 +494,13 @@ export default function App() {
     duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
   const activeSortOption =
     SORT_OPTIONS.find((option) => option.value === sortMode) ?? SORT_OPTIONS[0];
+  const activeSearchOption =
+    SEARCH_OPTIONS.find((option) => option.value === searchMode) ?? SEARCH_OPTIONS[0];
   const totalPages = Math.max(1, Math.ceil(totalSongCount / SONGS_PER_PAGE));
 
   function updateCatalogParams({
     search = searchTerm,
+    nextSearchMode = searchMode,
     category = activeCategory,
     sort = sortMode,
     nextPage = page,
@@ -449,6 +512,12 @@ export default function App() {
         nextParams.set("search", search);
       } else {
         nextParams.delete("search");
+      }
+
+      if (nextSearchMode && nextSearchMode !== "default") {
+        nextParams.set("searchMode", nextSearchMode);
+      } else {
+        nextParams.delete("searchMode");
       }
 
       if (category) {
@@ -476,6 +545,7 @@ export default function App() {
   function createCatalogReturn(songId) {
     return {
       search: searchTerm,
+      searchMode,
       category: activeCategory,
       sort: sortMode,
       page,
@@ -505,13 +575,16 @@ export default function App() {
   function resetCatalogFilters() {
     setSearchInput("");
     setSearchTerm("");
+    setSearchMode("default");
     setActiveCategory("");
     setSortMode("default");
     setPage(1);
+    setIsSearchModeMenuOpen(false);
     setIsCategoryMenuOpen(false);
     setIsSortMenuOpen(false);
     updateCatalogParams({
       search: "",
+      nextSearchMode: "default",
       category: "",
       sort: "default",
       nextPage: 1,
@@ -574,6 +647,20 @@ export default function App() {
       tone: "success",
     });
   }
+
+  function selectSearchMode(nextSearchMode) {
+    setSearchMode(nextSearchMode);
+    setPage(1);
+    setIsSearchModeMenuOpen(false);
+    updateCatalogParams({ nextSearchMode, nextPage: 1 });
+  }
+
+  const searchPlaceholder =
+    searchMode === "lyrics"
+      ? "Search by lyric line or phrase"
+      : searchMode === "deep"
+        ? "Search titles, artists, producers, or alternates"
+        : "Search by title, artist, or phrase";
 
   return (
     <>
@@ -722,6 +809,43 @@ export default function App() {
 
         <section className="filter-bar">
           <label className="field">
+            <span>Search mode</span>
+            <div
+              className={`custom-select ${isSearchModeMenuOpen ? "is-open" : ""}`}
+              ref={searchModeMenuRef}
+            >
+              <button
+                type="button"
+                className="custom-select__trigger"
+                aria-haspopup="listbox"
+                aria-expanded={isSearchModeMenuOpen}
+                onClick={() => setIsSearchModeMenuOpen((open) => !open)}
+              >
+                <span>{activeSearchOption.label}</span>
+                <span className="custom-select__chevron" aria-hidden="true">
+                  ▾
+                </span>
+              </button>
+              {isSearchModeMenuOpen ? (
+                <div className="custom-select__menu" role="listbox">
+                  {SEARCH_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`custom-select__option ${
+                        searchMode === option.value ? "is-selected" : ""
+                      }`}
+                      onClick={() => selectSearchMode(option.value)}
+                    >
+                      <strong>{option.label}</strong>
+                      <span>{option.description}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </label>
+          <label className="field">
             <span>Search</span>
             <input
               type="search"
@@ -732,10 +856,11 @@ export default function App() {
                 setPage(1);
                 updateCatalogParams({
                   search: nextValue.trim(),
+                  nextSearchMode: searchMode,
                   nextPage: 1,
                 });
               }}
-              placeholder="Search by title, artist, or phrase"
+              placeholder={searchPlaceholder}
             />
           </label>
           <label className="field">
@@ -836,7 +961,7 @@ export default function App() {
             <span>Page {page}</span>
             <span>
               {searchTerm
-                ? `Searching for "${searchTerm}"`
+                ? `${activeSearchOption.label}: "${searchTerm}"`
                 : "Browsing the full catalog"}
             </span>
             <span>Sorted by {activeSortOption.label.toLowerCase()}</span>
@@ -878,6 +1003,9 @@ export default function App() {
           <div className="mini-action-row">
             <Link to="/albums" className="chip is-active">
               Open albums
+            </Link>
+            <Link to="/eras" className="chip">
+              Browse eras
             </Link>
           </div>
         </section>

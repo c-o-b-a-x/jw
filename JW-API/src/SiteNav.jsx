@@ -50,6 +50,15 @@ export default function SiteNav() {
         </li>
         <li>
           <Link
+            to="/eras"
+            className={location.pathname.startsWith("/eras") ? "active" : ""}
+            onClick={closeMenu}
+          >
+            Eras
+          </Link>
+        </li>
+        <li>
+          <Link
             to="/videos"
             className={location.pathname === "/videos" ? "active" : ""}
             onClick={closeMenu}

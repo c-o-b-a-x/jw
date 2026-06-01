@@ -9,7 +9,7 @@ import {
   removeSongFromPlaylist,
   updatePlaylist,
 } from "./playlistStore";
-import { fetchSongs } from "./api";
+import { createSharedPlaylist, downloadZipSelection, fetchSongs } from "./api";
 import { useAudioPlayer } from "./audio-player";
 import { useToast } from "./toast";
 
@@ -22,6 +22,8 @@ export default function PlaylistDetail() {
   const [shareLink, setShareLink] = useState("");
   const [availableSongs, setAvailableSongs] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [shareMode, setShareMode] = useState("");
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
   const [draftName, setDraftName] = useState(() => getPlaylistById(id)?.name || "");
   const [draftDescription, setDraftDescription] = useState(
     () => getPlaylistById(id)?.description || "",
@@ -109,18 +111,45 @@ export default function PlaylistDetail() {
     });
   }
 
-  function handleShare() {
+  async function handleShare() {
     if (!playlist) return;
 
-    const shareToken = buildShareToken(playlist);
-    setShareLink(
-      `${window.location.origin}/shared?playlist=${encodeURIComponent(shareToken)}`,
-    );
-    pushToast({
-      title: "Share link ready",
-      message: "Copy the new playlist URL and send it anywhere.",
-      tone: "success",
-    });
+    const songIds = (playlist.songs || [])
+      .map((song) => Number(song.id))
+      .filter((songId) => Number.isFinite(songId));
+
+    try {
+      const sharedPlaylist = await createSharedPlaylist({
+        name: playlist.name,
+        description: playlist.description || "",
+        songIds,
+      });
+      const resolvedShareId = sharedPlaylist.shareId;
+      if (!resolvedShareId) {
+        throw new Error("Missing share ID");
+      }
+
+      setShareLink(
+        `${window.location.origin}/shared?playlist=${encodeURIComponent(resolvedShareId)}`,
+      );
+      setShareMode("official");
+      pushToast({
+        title: "Share link ready",
+        message: "Your playlist is now backed by the API share endpoint.",
+        tone: "success",
+      });
+    } catch {
+      const shareToken = buildShareToken(playlist);
+      setShareLink(
+        `${window.location.origin}/shared?playlist=${encodeURIComponent(shareToken)}`,
+      );
+      setShareMode("legacy");
+      pushToast({
+        title: "Fallback share ready",
+        message: "The API share endpoint did not respond, so a compatible local link was generated instead.",
+        tone: "warning",
+      });
+    }
   }
 
   function copyToClipboard() {
@@ -218,6 +247,39 @@ export default function PlaylistDetail() {
     playQueue(playableSongs, queueIndex, true);
   }
 
+  async function handleDownloadPlaylistZip() {
+    if (!playableSongs.length) {
+      pushToast({
+        title: "Nothing to download",
+        message: "Only songs with playable file paths can be zipped right now.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    setIsDownloadingZip(true);
+
+    try {
+      await downloadZipSelection(
+        playableSongs.map((song) => song.path),
+        `${playlist.name || "juicewrld-playlist"}.zip`,
+      );
+      pushToast({
+        title: "ZIP download started",
+        message: `${playlist.name} is being downloaded from the archive API.`,
+        tone: "success",
+      });
+    } catch {
+      pushToast({
+        title: "ZIP download failed",
+        message: "The API could not generate a ZIP for this playlist right now.",
+        tone: "warning",
+      });
+    } finally {
+      setIsDownloadingZip(false);
+    }
+  }
+
   if (error && !playlist) {
     return (
       <>
@@ -259,6 +321,14 @@ export default function PlaylistDetail() {
                   disabled={!playableSongs.length}
                 >
                   Shuffle
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadPlaylistZip}
+                  className="chip"
+                  disabled={!playableSongs.length || isDownloadingZip}
+                >
+                  {isDownloadingZip ? "Preparing ZIP..." : "Download ZIP"}
                 </button>
               </div>
             </div>
@@ -315,6 +385,13 @@ export default function PlaylistDetail() {
               </button>
             </div>
           )}
+          {shareLink ? (
+            <p className="field-hint">
+              {shareMode === "official"
+                ? "This link resolves through the official shared-playlist API."
+                : "This link uses the compatibility share format because the API share endpoint was unavailable."}
+            </p>
+          ) : null}
         </div>
 
         {error && (

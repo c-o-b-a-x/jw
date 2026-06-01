@@ -305,7 +305,7 @@ export default function SongDetail() {
     [selectedVideoPath, videos],
   );
   const selectedVideoUrl = buildFileUrl(extractVideoPath(selectedVideo));
-  const eraLink = song?.era?.name ? `/?search=${encodeURIComponent(song.era.name)}` : null;
+  const eraLink = song?.era?.name ? `/eras/${encodeURIComponent(song.era.name)}` : null;
   const producerLink = song?.producers
     ? `/?search=${encodeURIComponent(song.producers)}`
     : null;
@@ -321,6 +321,10 @@ export default function SongDetail() {
 
     if (catalogReturn.search) {
       nextParams.set("search", catalogReturn.search);
+    }
+
+    if (catalogReturn.searchMode && catalogReturn.searchMode !== "default") {
+      nextParams.set("searchMode", catalogReturn.searchMode);
     }
 
     if (catalogReturn.category) {

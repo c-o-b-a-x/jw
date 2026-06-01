@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAudioPlayer } from "./audio-player";
 import SiteNav from "./SiteNav";
-import { fetchSongs, formatCount } from "./api";
+import { downloadZipSelection, fetchSongs, formatCount } from "./api";
 import {
   findAlbumBySlug,
   getTrackAliases,
@@ -165,6 +165,7 @@ function AlbumDetailView() {
   const album = useMemo(() => findAlbumBySlug(slug), [slug]);
   const [resolvedTracks, setResolvedTracks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
   const [error, setError] = useState("");
   const { currentSong, currentIndex, queue, playQueue } = useAudioPlayer();
 
@@ -248,6 +249,21 @@ function AlbumDetailView() {
     playQueue(playableTracks, trackIndex, true);
   }
 
+  async function handleDownloadAlbumZip() {
+    if (!playableTracks.length) return;
+
+    setIsDownloadingZip(true);
+
+    try {
+      await downloadZipSelection(
+        playableTracks.map((track) => track.path),
+        `${album.title}.zip`,
+      );
+    } finally {
+      setIsDownloadingZip(false);
+    }
+  }
+
   if (!album) {
     return (
       <>
@@ -307,6 +323,14 @@ function AlbumDetailView() {
                   disabled={!playableTracks.length}
                 >
                   Play in order
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={handleDownloadAlbumZip}
+                  disabled={!playableTracks.length || isDownloadingZip}
+                >
+                  {isDownloadingZip ? "Preparing ZIP..." : "Download ZIP"}
                 </button>
                 <Link to="/" className="chip">
                   Open catalog

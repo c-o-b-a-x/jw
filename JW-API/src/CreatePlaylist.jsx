@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import SiteNav from "./SiteNav";
 import "./App.css";
 import { buildShareToken, createPlaylist } from "./playlistStore";
-import { fetchSongs } from "./api";
+import { createSharedPlaylist, fetchSongs } from "./api";
 import { useToast } from "./toast";
 
 export default function CreatePlaylist() {
@@ -13,6 +13,7 @@ export default function CreatePlaylist() {
   const [availableSongs, setAvailableSongs] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [shareLink, setShareLink] = useState("");
+  const [shareMode, setShareMode] = useState("");
   const [error, setError] = useState("");
   const { pushToast } = useToast();
 
@@ -101,7 +102,7 @@ export default function CreatePlaylist() {
       );
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     if (selectedSongs.length === 0) {
       setError("Please add at least one song.");
       return;
@@ -116,15 +117,42 @@ export default function CreatePlaylist() {
         songs: selectedSongs,
       });
 
-      const shareToken = buildShareToken(playlist);
-      setShareLink(
-        `${window.location.origin}/shared?playlist=${encodeURIComponent(shareToken)}`,
-      );
-      pushToast({
-        title: "Playlist created",
-        message: `${playlist.name} is ready to share.`,
-        tone: "success",
-      });
+      const songIds = selectedSongs
+        .map((song) => Number(song.id))
+        .filter((songId) => Number.isFinite(songId));
+
+      try {
+        const sharedPlaylist = await createSharedPlaylist({
+          name: playlist.name,
+          description: playlist.description || "",
+          songIds,
+        });
+        const resolvedShareId = sharedPlaylist.shareId;
+        if (!resolvedShareId) {
+          throw new Error("Missing share ID");
+        }
+
+        setShareLink(
+          `${window.location.origin}/shared?playlist=${encodeURIComponent(resolvedShareId)}`,
+        );
+        setShareMode("official");
+        pushToast({
+          title: "Playlist created",
+          message: `${playlist.name} is ready to share from the API.`,
+          tone: "success",
+        });
+      } catch {
+        const shareToken = buildShareToken(playlist);
+        setShareLink(
+          `${window.location.origin}/shared?playlist=${encodeURIComponent(shareToken)}`,
+        );
+        setShareMode("legacy");
+        pushToast({
+          title: "Fallback share created",
+          message: "The API share endpoint did not respond, so a compatible local link was generated instead.",
+          tone: "warning",
+        });
+      }
     } catch {
       setError("Failed to save the playlist. Please try again.");
     } finally {
@@ -143,7 +171,7 @@ export default function CreatePlaylist() {
           <h2>Build and share your own collection</h2>
           <p className="detail-description">
             Search for songs, add them to a playlist, save it locally, and generate a
-            shareable link based on the song IDs in the public API.
+            shareable link from the official Juice WRLD playlist API.
           </p>
         </div>
 
@@ -246,8 +274,9 @@ export default function CreatePlaylist() {
               </button>
             </div>
             <p className="field-hint">
-              Anyone with this link can open the playlist and load the songs from the
-              Juice WRLD API.
+              {shareMode === "official"
+                ? "Anyone with this link can open the API-backed shared playlist directly from the archive service."
+                : "This link uses a local compatibility token so older sharing still works if the share API is unavailable."}
             </p>
           </div>
         )}

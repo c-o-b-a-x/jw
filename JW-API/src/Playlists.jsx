@@ -98,7 +98,7 @@ export default function Playlists() {
             <h2>Personal collections</h2>
             <p className="detail-description">
               Playlists are saved in your browser so you can build your own Juice WRLD
-              collections without depending on unsupported API endpoints.
+              collections locally, then share them through the site&apos;s playlist tools.
             </p>
           </div>
 

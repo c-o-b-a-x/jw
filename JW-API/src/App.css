@@ -416,7 +416,12 @@ textarea {
 
 .filter-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(220px, 0.58fr) minmax(220px, 0.58fr) auto;
+  grid-template-columns:
+    minmax(190px, 0.52fr)
+    minmax(0, 1.05fr)
+    minmax(220px, 0.58fr)
+    minmax(220px, 0.58fr)
+    auto;
   gap: 18px;
   align-items: end;
   padding: 22px;

@@ -1,29 +1,41 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAudioPlayer } from "./audio-player";
 import SiteNav from "./SiteNav";
-import {
-  SONGS_PER_PAGE,
-  buildImageUrl,
-  fetchSongs,
-  formatCategoryLabel,
-} from "./api";
+import { buildImageUrl, fetchRandomRadioSong, formatCategoryLabel } from "./api";
 import "./App.css";
 
-function shuffleArray(array) {
-  const shuffled = [...array];
-  for (let index = shuffled.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+function normalizeRadioSong(payload) {
+  return payload?.song || payload?.data?.song || payload;
+}
+
+async function loadUniqueRandomSongs(count, signal, existingIds = new Set()) {
+  const songs = [];
+  const seenIds = new Set(existingIds);
+  let attempts = 0;
+  const maxAttempts = Math.max(count * 6, 12);
+
+  while (songs.length < count && attempts < maxAttempts) {
+    attempts += 1;
+    const payload = await fetchRandomRadioSong({ signal });
+    const song = normalizeRadioSong(payload);
+    if (!song?.id || seenIds.has(song.id) || !song.path) {
+      continue;
+    }
+
+    seenIds.add(song.id);
+    songs.push(song);
   }
-  return shuffled;
+
+  return songs;
 }
 
 export default function Radio() {
   const [playlist, setPlaylist] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isShuffled, setIsShuffled] = useState(true);
+  const [isQueueRefreshing, setIsQueueRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const loadingMoreRef = useRef(false);
   const {
     currentSong,
     queue,
@@ -34,47 +46,78 @@ export default function Radio() {
     togglePlayPause,
   } = useAudioPlayer();
 
-  const fetchSongsBatch = useCallback(async (page = 1) => {
+  const isStationQueue = useMemo(() => {
+    if (!playlist.length || queue.length !== playlist.length) {
+      return false;
+    }
+
+    return queue.every((song, index) => song.id === playlist[index]?.id);
+  }, [playlist, queue]);
+
+  const radioIndex = useMemo(() => {
+    if (!playlist.length || !currentSong) return 0;
+    const songIndex = playlist.findIndex((song) => song.id === currentSong.id);
+    return songIndex >= 0 ? songIndex : 0;
+  }, [currentSong, playlist]);
+
+  const extendStation = useCallback(async () => {
+    if (loadingMoreRef.current) return;
+
+    loadingMoreRef.current = true;
+    setIsQueueRefreshing(true);
     const controller = new AbortController();
 
     try {
-      const data = await fetchSongs(
-        {
-          page,
-          pageSize: SONGS_PER_PAGE,
-        },
-        { signal: controller.signal },
+      const nextSongs = await loadUniqueRandomSongs(
+        8,
+        controller.signal,
+        new Set(playlist.map((song) => song.id)),
       );
-      return data.results || [];
-    } catch (fetchError) {
-      if (fetchError.name !== "AbortError") {
-        setError("Failed to load radio station. Please refresh the page.");
+
+      if (!nextSongs.length) {
+        return;
       }
-      return [];
+
+      setPlaylist((currentPlaylist) => {
+        const expandedPlaylist = [...currentPlaylist, ...nextSongs];
+
+        if (isStationQueue) {
+          const safeIndex = currentSong
+            ? expandedPlaylist.findIndex((song) => song.id === currentSong.id)
+            : 0;
+          playQueue(expandedPlaylist, safeIndex >= 0 ? safeIndex : 0, false);
+        }
+
+        return expandedPlaylist;
+      });
+    } catch {
+      setError("The radio queue could not be refreshed right now.");
+    } finally {
+      loadingMoreRef.current = false;
+      setIsQueueRefreshing(false);
+      controller.abort();
     }
-  }, []);
+  }, [currentSong, isStationQueue, playQueue, playlist]);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function loadInitialPlaylist() {
       setIsLoading(true);
       setError("");
 
       try {
-        const [firstBatch, secondBatch, thirdBatch] = await Promise.all([
-          fetchSongsBatch(1),
-          fetchSongsBatch(2),
-          fetchSongsBatch(3),
-        ]);
-        const allSongs = [...firstBatch, ...secondBatch, ...thirdBatch];
+        const songs = await loadUniqueRandomSongs(12, controller.signal);
 
-        if (allSongs.length === 0) {
-          setError("No songs available for the radio station.");
-        } else {
-          const shuffledSongs = shuffleArray(allSongs);
-          setPlaylist(shuffledSongs);
-          if (!queue.length) {
-            playQueue(shuffledSongs, 0);
-          }
+        if (!songs.length) {
+          setError("No playable songs were returned for the radio station.");
+          setPlaylist([]);
+          return;
+        }
+
+        setPlaylist(songs);
+        if (!queue.length) {
+          playQueue(songs, 0, true);
         }
       } catch {
         setError("Could not start the radio. Please try again later.");
@@ -84,31 +127,47 @@ export default function Radio() {
     }
 
     loadInitialPlaylist();
-  }, [fetchSongsBatch, playQueue, queue.length]);
+    return () => controller.abort();
+  }, [playQueue, queue.length]);
 
-  const radioIndex = useMemo(() => {
-    if (!playlist.length || !currentSong) return 0;
-    const songIndex = playlist.findIndex((song) => song.id === currentSong.id);
-    return songIndex >= 0 ? songIndex : 0;
-  }, [currentSong, playlist]);
+  useEffect(() => {
+    if (!playlist.length) return;
+    const remainingSongs = playlist.length - radioIndex - 1;
+    if (remainingSongs > 4) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void extendStation();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [extendStation, playlist, radioIndex]);
 
   function handleStartRadio() {
     if (!playlist.length) return;
-    playQueue(playlist, radioIndex >= 0 ? radioIndex : 0);
+    playQueue(playlist, radioIndex >= 0 ? radioIndex : 0, true);
   }
 
-  function handleShuffle() {
-    if (!playlist.length) return;
+  async function handleRefreshStation() {
+    const controller = new AbortController();
+    setIsLoading(true);
+    setError("");
 
-    if (!isShuffled) {
-      const currentRadioSong = playlist[radioIndex] ?? playlist[0];
-      const remainingSongs = playlist.filter((song) => song.id !== currentRadioSong?.id);
-      const shuffledSongs = [currentRadioSong, ...shuffleArray(remainingSongs)];
-      setPlaylist(shuffledSongs);
-      playQueue(shuffledSongs, 0);
+    try {
+      const songs = await loadUniqueRandomSongs(12, controller.signal);
+
+      if (!songs.length) {
+        setError("No playable songs were returned for the radio station.");
+        return;
+      }
+
+      setPlaylist(songs);
+      playQueue(songs, 0, true);
+    } catch {
+      setError("Could not refresh the radio station.");
+    } finally {
+      setIsLoading(false);
+      controller.abort();
     }
-
-    setIsShuffled((currentValue) => !currentValue);
   }
 
   if (isLoading) {
@@ -141,6 +200,9 @@ export default function Radio() {
               <Link to="/" className="chip is-active">
                 Browse catalog
               </Link>
+              <button type="button" className="chip" onClick={handleRefreshStation}>
+                Retry station
+              </button>
             </div>
           </div>
         </div>
@@ -195,17 +257,13 @@ export default function Radio() {
               </button>
             </div>
             <div className="mobile-player-actions mobile-player-actions--secondary">
-              <button
-                type="button"
-                onClick={handleShuffle}
-                className={`chip ${isShuffled ? "is-active" : ""}`}
-              >
-                Shuffle
+              <button type="button" className="chip" onClick={handleRefreshStation}>
+                Refresh station
               </button>
             </div>
             <p className="player-note">
-              The shared player stays mounted so playback can continue while you browse
-              other pages or background your phone browser.
+              Powered by the API&apos;s dedicated random radio endpoint, with the queue
+              refilling as you get close to the end.
             </p>
           </div>
 
@@ -217,9 +275,9 @@ export default function Radio() {
                   <strong>{song.name}</strong> - {song.credited_artists || "Juice WRLD"}
                 </div>
               ))}
-              {playlist.length - radioIndex - 1 < 5 && (
-                <p className="field-hint">More tracks loading soon...</p>
-              )}
+              {isQueueRefreshing ? (
+                <p className="field-hint">Refreshing with more random songs...</p>
+              ) : null}
             </div>
           </div>
         </div>

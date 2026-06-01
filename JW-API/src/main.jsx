@@ -6,6 +6,7 @@ import SongDetail from "./SongDetail";
 import About from "./About";
 import Radio from "./Radio";
 import Albums from "./Albums.jsx";
+import Eras from "./Eras.jsx";
 import Videos from "./Videos.jsx";
 import Playlists from "./Playlists";
 import CreatePlaylist from "./CreatePlaylist";
@@ -28,6 +29,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/videos" element={<Videos />} />
             <Route path="/albums" element={<Albums />} />
             <Route path="/albums/:slug" element={<Albums />} />
+            <Route path="/eras" element={<Eras />} />
+            <Route path="/eras/:eraName" element={<Eras />} />
             <Route path="/playlists" element={<Playlists />} />
             <Route path="/playlist/:id" element={<PlaylistDetail />} />
             <Route path="/create-playlist" element={<CreatePlaylist />} />
