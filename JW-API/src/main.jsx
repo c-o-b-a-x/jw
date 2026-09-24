@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import App from "./App";
 import SongDetail from "./SongDetail";
 import About from "./About";
@@ -18,7 +18,7 @@ import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <ToastProvider>
         <AudioPlayerProvider>
           <Routes>
@@ -39,6 +39,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           </Routes>
         </AudioPlayerProvider>
       </ToastProvider>
-    </BrowserRouter>
+    </HashRouter>
   </React.StrictMode>,
 );

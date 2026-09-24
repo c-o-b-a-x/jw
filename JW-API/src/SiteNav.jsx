@@ -14,9 +14,9 @@ export default function SiteNav() {
 
   return (
     <nav className="top-navbar">
-      <a href="/" onClick={closeMenu}>
+      <Link to="/" onClick={closeMenu}>
         <img src={logo} alt="999 logo" className="navbar-logo" />
-      </a>
+      </Link>
       <button
         className="menu-toggle"
         onClick={() => setIsMenuOpen((open) => !open)}
@@ -26,18 +26,18 @@ export default function SiteNav() {
       </button>
       <ul className={`nav-links ${isMenuOpen ? "open" : ""}`}>
         <li>
-          <a href="/" className={isHomeRoute ? "active" : ""} onClick={closeMenu}>
+          <Link to="/" className={isHomeRoute ? "active" : ""} onClick={closeMenu}>
             Home
-          </a>
+          </Link>
         </li>
         <li>
-          <a
-            href="/#explore"
+          <Link
+            to="/#explore"
             className={isHomeRoute && location.hash === "#explore" ? "active" : ""}
             onClick={closeMenu}
           >
             Explore
-          </a>
+          </Link>
         </li>
         <li>
           <Link

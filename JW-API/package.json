@@ -1,13 +1,18 @@
 {
   "name": "jw-api",
+  "description": "JW API Desktop app",
+  "author": "JW API",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder --win portable"
   },
   "dependencies": {
     "react": "^19.2.5",
@@ -19,10 +24,37 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "electron": "^38.1.0",
+    "electron-builder": "^25.1.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
     "vite": "^8.0.9"
+  },
+  "build": {
+    "appId": "com.jwapi.desktop",
+    "productName": "JW API Desktop",
+    "icon": "src/assets/logo999.png",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "src/assets/logo999.png",
+      "sign": false,
+      "signAndEditExecutable": false,
+      "verifyUpdateCodeSignature": false
+    },
+    "portable": {
+      "artifactName": "JW-API-Desktop.exe"
+    }
   }
 }
