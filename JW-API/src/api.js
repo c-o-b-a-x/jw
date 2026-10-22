@@ -1,4 +1,12 @@
-export const API_BASE_URL = "/api";
+const DIRECT_API_ORIGIN = "https://juicewrldapi.com";
+
+// During local development Vite proxies /api to the real API (see vite.config.js).
+// In production there is no proxy on Cloudflare, so talk to the API origin directly.
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? "/api" : DIRECT_API_ORIGIN)
+).replace(/\/+$/, "");
+
 export const SONGS_PER_PAGE = 12;
 
 const responseCache = new Map();

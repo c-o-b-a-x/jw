@@ -9,20 +9,10 @@ import {
   useState,
 } from "react";
 import { Link } from "react-router-dom";
+import { buildAudioUrl, buildImageUrl } from "./api";
 
-const API_BASE_URL = "https://juicewrldapi.com";
 const RECENT_SONGS_STORAGE_KEY = "jw_recent_songs";
 const PLAYER_VOLUME_STORAGE_KEY = "jw_player_volume";
-
-function buildAudioUrl(path) {
-  if (!path) return "";
-  return `${API_BASE_URL}/juicewrld/files/download/?path=${encodeURIComponent(path)}`;
-}
-
-function buildImageUrl(path) {
-  if (!path) return "";
-  return path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
-}
 
 const AudioPlayerContext = createContext(null);
 

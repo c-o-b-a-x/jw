@@ -1,2 +1,2 @@
 /*
-  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://juicewrldapi.com https://cloudflareinsights.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self';
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://juicewrldapi.com https://cloudflareinsights.com; img-src 'self' data: https:; media-src 'self' blob: data: https://juicewrldapi.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self';

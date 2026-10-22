@@ -1,4 +1,7 @@
-export const API_BASE_URL = "/api";
+// React Native has no origin to resolve relative URLs against, so point at the API directly.
+export const API_BASE_URL = (
+  process.env.EXPO_PUBLIC_API_BASE_URL || "https://juicewrldapi.com"
+).replace(/\/+$/, "");
 export const SONGS_PER_PAGE = 16;
 
 export type Song = {
