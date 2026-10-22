@@ -1,4 +1,4 @@
-export const API_BASE_URL = "https://juicewrldapi.com";
+export const API_BASE_URL = "/api";
 export const SONGS_PER_PAGE = 16;
 
 export type Song = {
